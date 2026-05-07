@@ -8,6 +8,8 @@ info = f'''{'='*30}
 {'='*30}
 姓名: {name}
 年龄: {age}岁
+
+
 城市: {city}
 爱好: {hobby}
 体温: {temperature}
