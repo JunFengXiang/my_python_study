@@ -1,0 +1,57 @@
+{
+  "source_pdf_pages": 727,
+  "retained_pdf_pages": 678,
+  "retained_ranges": [
+    [
+      43,
+      246
+    ],
+    [
+      248,
+      335
+    ],
+    [
+      339,
+      447
+    ],
+    [
+      449,
+      546
+    ],
+    [
+      548,
+      726
+    ]
+  ],
+  "excluded_ranges": [
+    [
+      1,
+      42
+    ],
+    [
+      247,
+      247
+    ],
+    [
+      336,
+      338
+    ],
+    [
+      448,
+      448
+    ],
+    [
+      547,
+      547
+    ],
+    [
+      727,
+      727
+    ]
+  ],
+  "chapter_files": 25,
+  "dpi": 144,
+  "text_status": "AI compared against source pages; editable Markdown; not human-reviewed; not all code executed",
+  "review_record": "../校对记录.md",
+  "images_status": "one rendered source page per retained page"
+}
