@@ -7,6 +7,7 @@ Python 练习与本月参考书学习资料。
 前期在 MacBook 完成 Python、NumPy、pandas、Matplotlib 和工程基础，验收后衔接小型 GPT 实践。
 
 - [学习方法与路线](docs/LEARNING_GUIDE.md)：阅读顺序、约 21 个基础学习单元、贯穿项目和验收标准。
+- [每日任务卡](docs/TASKS.md)：当前任务、验收条件与15分钟版本；定时计划检查进度后更新。
 - [学习记录](docs/LEARNING_LOG.md)：逐步记录问题、原因、修改、真实验证与可复用经验。
 
 当前文档整理的是方法和计划；练习完成情况以学习记录中的证据为准。
