@@ -1,0 +1,322 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\epsmach}{\varepsilon_{\mathrm{machine}}}
+
+\title{数值线性代数\quad 第 25 讲：特征值算法概述}
+\author{Lloyd N. Trefethen、David Bau III\quad 中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+\pagestyle{plain}
+
+本讲以及接下来的五讲介绍一些计算特征值与特征向量的经典“直接”
+算法，也会提到几种现代变体。大多数算法分成两个阶段：先把满矩阵
+直接约化为某种结构化形式，再通过迭代过程使结果最终收敛。本讲先概述
+这种两阶段思路，并解释为什么预先结构化是有益的。
+
+\section*{显而易见的算法为什么不理想}
+
+虽然特征值和特征向量的定义简单、刻画优雅，但最好的计算方法并不
+显而易见。一个自然的想法是先计算特征多项式的系数，再使用求根器
+求出其根。遗憾的是，正如第 15 讲所说，这是一种糟糕的策略：即使
+底层的特征值问题是良态的，多项式求根通常也是病态问题。（事实上，
+多项式求根几乎从来不是科学计算的主流主题，原因正是它很少是解决
+实际问题的最佳方式。）
+
+另一个想法是利用下列序列：
+\begin{equation*}
+ \frac{x}{\lVert x\rVert},\quad
+ \frac{Ax}{\lVert Ax\rVert},\quad
+ \frac{A^2x}{\lVert A^2x\rVert},\quad
+ \frac{A^3x}{\lVert A^3x\rVert},\quad \ldots
+\end{equation*}
+在一定假设下，这个序列会收敛到对应于 $A$ 的绝对值最大特征值的
+一个特征向量。用这种方法寻找特征向量称为幂迭代（power iteration）。
+遗憾的是，幂迭代虽然著名，却绝不是一种适合一般用途的有效工具；除非
+矩阵具有特殊结构，否则它会非常慢。
+
+一般用途的优秀特征值算法并不依赖这些想法，而是遵循另一个原则：
+计算 $A$ 的一种“揭示特征值的分解”，使特征值直接出现在某个因子中。
+上一讲已经见过三种这样的分解：对角化、酉对角化和酉三角化（Schur
+分解）。实践中，人们通常通过构造其中一种分解来计算特征值。从概念
+上说，需要做的是对 $A$ 施加一系列变换，在适当位置引入零；这与本书
+前面各讲中的算法完全相同。因此，寻找特征值最终和求解方程组或最小
+二乘问题有着相似的风格。数值线性代数中的算法，主要建立在一个被
+反复使用的技巧之上：把矩阵中的某些条目变成零。
+
+\section*{一个根本困难}
+
+不过，计算特征值时会出现一个新的因素。乍看起来，代数方面的原因
+似乎会阻止这类算法取得完全成功。
+
+要看清这个困难，注意到正如特征值问题可以化为多项式求根问题，反过来，
+任意多项式求根问题也都可以表述为特征值问题。设给定首一多项式
+\begin{equation}
+ p(z)=z^m+a_{m-1}z^{m-1}+\cdots+a_1z+a_0.
+ \tag{25.1}
+\end{equation}
+通过按余子式展开不难验证，$p(z)$ 等于 $(-1)^m$ 乘以下列
+$m\times m$ 矩阵的行列式：
+\begin{equation}
+ p(z)=(-1)^m\det\begin{bmatrix}
+ -z&0&0&\cdots&-a_0\\
+ 1&-z&0&\cdots&-a_1\\
+ 0&1&-z&\ddots&-a_2\\
+ \vdots&\ddots&\ddots&\ddots&\vdots\\
+ 0&\cdots&0&1&-z-a_{m-1}
+ \end{bmatrix}.
+ \tag{25.2}
+\end{equation}
+因此，$p$ 的根就是矩阵
+\begin{equation}
+ A=\begin{bmatrix}
+ 0&0&0&\cdots&-a_0\\
+ 1&0&0&\cdots&-a_1\\
+ 0&1&0&\ddots&-a_2\\
+ \vdots&\ddots&\ddots&\ddots&\vdots\\
+ 0&\cdots&0&1&-a_{m-1}
+ \end{bmatrix}
+ \tag{25.3}
+\end{equation}
+的特征值。（也可以不经过 (25.2) 直接得到 (25.3)：如果 $z$ 是
+$p$ 的根，那么由 (25.1) 可知，$(1,z,z^2,\ldots,z^{m-1})$ 是
+$A$ 的特征值为 $z$ 的左特征向量。）矩阵 $A$ 称为对应于 $p$ 的
+伴随矩阵（companion matrix）。
+
+现在困难就很明显了。众所周知，不存在一个给定多项式系数、能够用来
+表达任意多项式根的通用公式。这一不可能性结果，是 Abel、Galois 等人
+在十九世纪完成的一系列数学工作的杰出成果之一。Abel 在 1824 年证明，
+对于五次或更高次多项式，不可能存在二次公式的类似物。
+
+\paragraph{定理 25.1.}
+对任意 $m\ge 5$，都存在一个系数为有理数的 $m$ 次多项式 $p(z)$，
+它有一个实根 $r$ 满足 $p(r)=0$，并且 $r$ 不能写成只使用有理数、
+加法、减法、乘法、除法和 $k$ 次根式的任何表达式。
+
+这个定理意味着，即使允许使用精确算术，也不可能有一个计算机程序
+在有限步内产生任意多项式的精确根。因此，对于更一般的矩阵特征值
+问题也有同样的结论。
+
+这并不意味着我们不能写出优秀的特征值求解器；但它意味着，这种求解器
+不能建立在前面求解线性方程组时所使用的同类技术之上。如果能够在精确
+算术中实现，Householder 反射和高斯消去法都可以在有限步内精确求解
+线性方程组。相比之下：
+\begin{equation*}
+ \boxed{\text{任何特征值求解器都必须是迭代的}}
+\end{equation*}
+
+特征值求解器的目标，是产生一列快速收敛到特征值的数列。在这一点上，
+特征值计算比线性方程组求解更能代表科学计算的典型情形；参见附录。
+一开始，“必须迭代”似乎令人沮丧，但这个领域的算法收敛极快。多数
+情况下，每一步都能让准确数字的位数增加一倍或三倍。因此，虽然从原则
+上说特征值计算是一个“不可解”问题，但在实践中，它与求解线性方程组
+的差别通常只体现为一个不大的常数因子，往往更接近 1 而不是 10。从
+理论上看，运算量对 $\epsmach$ 的依赖可以弱到
+\begin{equation*}
+ O\!\left(\log\left|\log\epsmach\right|\right)
+\end{equation*}
+参见习题 25.2。
+
+\section*{Schur 分解与对角化}
+
+目前使用的大多数通用特征值算法，都是通过计算 Schur 分解来工作的。
+我们通过一系列初等酉相似变换
+\[
+ X\longmapsto Q_j^*XQ_j
+\]
+变换 $A$，使得
+\begin{equation}
+ Q_j^*\cdots Q_2^*Q_1^*\,A\,Q_1Q_2\cdots Q_j
+ \longrightarrow T,\qquad j\to\infty,
+ \tag{25.4}
+\end{equation}
+其中极限 $T$ 是上三角矩阵。令
+\[
+ Q=Q_1Q_2\cdots,
+\]
+在收敛意义下就得到 Schur 分解
+\[
+ A=QTQ^*.
+\]
+
+如果 $A$ 是实矩阵但不是对称矩阵，那么它一般可能有成共轭对出现的
+复特征值；此时它的 Schur 形式也会是复数的。因此，计算 Schur 分解的
+算法必须能够从实输入产生复输出。当然这是可以做到的，毕竟实系数
+多项式的求根器也具有同样的性质。
+
+另一种选择是在整个计算过程中都使用实数运算，计算所谓的实 Schur
+分解。在这种分解中，允许 $T$ 的对角线上出现 $2\times2$ 块，每个
+块对应一对复共轭特征值。这个选项在实践中很重要，所有软件库都包含
+相应实现；不过本书不在此处给出细节。
+
+另一方面，假设 $A$ 是 Hermitian 矩阵。那么
+\[
+ Q_j^*\cdots Q_2^*Q_1^*AQ_1Q_2\cdots Q_j
+\]
+仍然是 Hermitian 矩阵。因此，收敛序列的极限既是上三角矩阵又是
+Hermitian 矩阵，也就是对角矩阵。这说明：计算一般矩阵酉三角化的同一
+类算法，也能计算 Hermitian 矩阵的酉对角化。在实践中，Hermitian 情形
+通常就是这样处理的，只是在每一步还会加入若干利用 Hermitian 结构的
+修改。
+
+\section*{特征值计算的两个阶段}
+
+不论 $A$ 是否为 Hermitian，序列 (25.4) 通常都分成两个阶段。第一阶段
+使用直接方法得到上 Hessenberg 矩阵 $H$，即第一条次对角线以下的
+所有条目都为零的矩阵。第二阶段进行迭代，生成一个形式上无限的
+Hessenberg 矩阵序列，使其收敛到上三角形式。这个过程可以概括为
+\[
+\resizebox{0.97\textwidth}{!}{$
+\begin{array}{c@{\quad\xrightarrow{\ \text{第一阶段}\ }\quad}c@{\quad\xrightarrow{\ \text{第二阶段}\ }\quad}c}
+ \underbrace{\begin{bmatrix}
+ \times&\times&\times&\times&\times\\
+ \times&\times&\times&\times&\times\\
+ \times&\times&\times&\times&\times\\
+ \times&\times&\times&\times&\times\\
+ \times&\times&\times&\times&\times
+ \end{bmatrix}}_{A\ne A^*}
+ &
+ \begin{bmatrix}
+ \times&\times&\times&\times&\times\\
+ \times&\times&\times&\times&\times\\
+ 0&\times&\times&\times&\times\\
+ 0&0&\times&\times&\times\\
+ 0&0&0&\times&\times
+ \end{bmatrix}_{H}
+ &
+ \begin{bmatrix}
+ \times&\times&\times&\times&\times\\
+ 0&\times&\times&\times&\times\\
+ 0&0&\times&\times&\times\\
+ 0&0&0&\times&\times\\
+ 0&0&0&0&\times
+ \end{bmatrix}_{T}.
+\end{array}$}
+\]
+
+第一阶段的直接约化需要 $O(m^3)$ 次浮点运算。第二阶段在原则上永远
+不会终止；如果让它无限运行，就需要无限多次运算。但在实际中，通常
+只需 $O(m)$ 次迭代就能达到机器精度。每次迭代需要 $O(m^2)$ 次浮点
+运算，所以总工作量仍为 $O(m^3)$。这些数量级解释了第一阶段的重要性：
+如果没有预处理这一步，第二阶段的每次迭代都要处理满矩阵，需要
+$O(m^3)$ 次运算，总量就会达到 $O(m^4)$，甚至更高，因为收敛有时也
+可能需要超过 $O(m)$ 次迭代。
+
+如果 $A$ 是 Hermitian，两阶段方法还会更快。此时中间矩阵是 Hermitian
+Hessenberg 矩阵，也就是三对角矩阵；最终结果是 Hermitian 上三角矩阵，
+也就是对角矩阵。示意如下：
+\[
+\resizebox{0.97\textwidth}{!}{$
+\begin{array}{c@{\quad\xrightarrow{\ \text{第一阶段}\ }\quad}c@{\quad\xrightarrow{\ \text{第二阶段}\ }\quad}c}
+ \underbrace{\begin{bmatrix}
+ \times&\times&0&0&0\\
+ \times&\times&\times&0&0\\
+ 0&\times&\times&\times&0\\
+ 0&0&\times&\times&\times\\
+ 0&0&0&\times&\times
+ \end{bmatrix}}_{A=A^*}
+ &
+ \begin{bmatrix}
+ \times&\times&0&0&0\\
+ \times&\times&\times&0&0\\
+ 0&\times&\times&\times&0\\
+ 0&0&\times&\times&\times\\
+ 0&0&0&\times&\times
+ \end{bmatrix}_{H}
+ &
+ \begin{bmatrix}
+ \times&0&0&0&0\\
+ 0&\times&0&0&0\\
+ 0&0&\times&0&0\\
+ 0&0&0&\times&0\\
+ 0&0&0&0&\times
+ \end{bmatrix}_{D}.
+\end{array}$}
+\]
+
+在 Hermitian 情形，如果只需要特征值而不需要特征向量，那么第二阶段
+的每一步只需 $O(m)$ 次浮点运算，因而第二阶段的总工作量为 $O(m^2)$。
+所以，对于 Hermitian 特征值问题，我们处于一个有些反直觉的情形：
+算法中“无限”的部分在实践中不仅不比“有限”的第一阶段慢，反而快了
+一个数量级。
+
+\section*{习题}
+
+\paragraph{25.1.}
+\begin{enumerate}[label=(\alph*)]
+  \item 设 $A\in\mathbb{C}^{m\times m}$ 是三对角 Hermitian 矩阵，且所有
+  次对角线和超次对角线条目都非零。证明 $A$ 的特征值互不相同。
+  （提示：证明对任意 $\lambda\in\mathbb{C}$，矩阵 $A-\lambda I$ 的秩
+  至少为 $m-1$。）
+  \item 另一方面，设 $A$ 是上 Hessenberg 矩阵，且所有次对角线条目
+  都非零。给出一个例子，说明 $A$ 的特征值不一定互不相同。
+\end{enumerate}
+
+\paragraph{25.2.}
+设 $e_1,e_2,e_3,\ldots$ 是一列非负数，表示某个迭代过程中的误差，
+并且该序列收敛到零。假设存在常数 $C$ 和指数 $\alpha$，使得对所有
+充分大的 $k$ 都有
+\[
+ e_{k+1}\le C(e_k)^\alpha.
+\]
+特征值计算第二阶段的各种算法会表现出三次收敛（$\alpha=3$）、二次
+收敛（$\alpha=2$）或线性收敛（$\alpha=1$ 且 $C<1$）。线性收敛也
+可能被称为几何收敛，这个称呼有时会造成混淆。
+
+\begin{enumerate}[label=(\alph*)]
+  \item 假设我们希望得到精度为 $O(\epsmach)$ 的答案，并且每一步的
+  工作量为 $O(1)$。在线性收敛的情形，证明总工作量为
+  $O\bigl(|\log\epsmach|\bigr)$。常数 $C$ 如何进入你的工作量估计？
+  \item 证明在超线性收敛，即 $\alpha>1$ 的情形，总工作量变为
+  $O\!\left(\log\left|\log\epsmach\right|\right)$。（提示：定义新的
+  误差量
+  \[
+   f_k=C^{1/(\alpha-1)}e_k
+  \]
+  这样可以简化问题。）指数 $\alpha$ 如何进入你的工作量估计？
+\end{enumerate}
+
+这里把工作量写成 $|\log\epsmach|$，是因为实际的机器精度满足
+$0<\epsmach<1$；这只是把原书中简写的对数数量级写成了显式的正数。
+
+\paragraph{25.3.}
+设有一个 $3\times3$ 矩阵，希望通过左乘和/或右乘酉矩阵 $Q_j$
+（例如 Householder 反射或 Givens 旋转）来引入零。考虑下列三种
+矩阵结构：
+\[
+\begin{array}{c@{\qquad}c@{\qquad}c}
+\text{(a)}\ \begin{bmatrix}
+ \times&\times&0\\0&\times&\times\\0&0&\times
+\end{bmatrix}
+&
+\text{(b)}\ \begin{bmatrix}
+ \times&\times&0\\\times&0&\times\\0&\times&\times
+\end{bmatrix}
+&
+\text{(c)}\ \begin{bmatrix}
+ \times&\times&0\\0&0&\times\\0&0&\times
+\end{bmatrix}.
+\end{array}
+\]
+对每一种结构，判断下列哪一种情况成立，并说明理由：
+\begin{enumerate}[label=(\roman*)]
+  \item 能否通过一系列左乘矩阵 $Q_j$ 得到？
+  \item 如果不能满足 (i)，能否通过一系列左乘和右乘矩阵 $Q_j$ 得到？
+  \item 是否不可能通过任何一系列左乘和右乘矩阵 $Q_j$ 得到？
+\end{enumerate}
+
+\end{document}

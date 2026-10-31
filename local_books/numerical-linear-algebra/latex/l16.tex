@@ -1,0 +1,296 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\epsmach}{\varepsilon_{\mathrm{machine}}}
+\newcommand{\fl}{\operatorname{fl}}
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}
+\renewcommand{\thetheorem}{16.\arabic{theorem}}
+\renewcommand{\thefigure}{16.\arabic{figure}}
+
+\title{数值线性代数\quad 第 16 讲：Householder 三角化的稳定性}
+\author{Lloyd N. Trefethen、David Bau III\quad 中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+\pagestyle{plain}
+
+本讲将看到后向误差分析如何真正发挥作用.首先，我们通过一个 MATLAB 实验观察 Householder 三角化具有后向稳定性这一令人惊讶的现象.随后讨论如何把三角化步骤与其他后向稳定的步骤结合起来，从而得到求解 $Ax=b$ 的稳定算法.
+
+\section*{实验}
+
+Householder 分解是计算 QR 分解的后向稳定算法.可以在 IEEE 双精度算术中进行如下 MATLAB 实验，其中
+\[
+    \epsmach\approx1.11\times10^{-16}.
+\]
+
+\begin{verbatim}
+R = triu(randn(50));           Set R to a 50 x 50 upper-triangular
+                               matrix with normal random entries.
+[Q,X] = qr(randn(50));         Set Q to a random orthogonal matrix
+                               by orthogonalizing a random matrix.
+A = Q*R;                       Set A to the product QR, up to round-
+                               ing errors.
+[Q2,R2] = qr(A);               Compute QR factorization A ~= Q2R2
+                               by Householder triangularization.
+\end{verbatim}
+
+这四行 MATLAB 的目的，是构造一个已知 QR 分解的矩阵 $A=QR$，再把它与通过 Householder 三角化计算出的 QR 分解 $A\approx Q_2R_2$ 进行比较.实际上，由于舍入误差，计算矩阵 $A$ 的 QR 因子并不恰好是 $Q$ 和 $R$.不过，对于这个实验，它们已经足够接近.如果在更高精度算术中计算 $A=QR$，使 $A$ 恰好等于 $QR$，下面的结果也不会有显著不同.
+
+然而，$Q_2$ 和 $R_2$ 本身却远非精确：
+
+\begin{verbatim}
+norm(Q2-Q)                       How accurate is Q2?
+    ans = 0.00889
+
+norm(R2-R)/norm(R)               How accurate is R2?
+    ans = 0.00071
+\end{verbatim}
+
+这些误差很大!我们的计算使用了 16 位精度，但最终结果只有两三位是准确的.单次舍入误差被放大了约 $10^{13}$ 倍.（注意，计算得到的 $Q_2$ 已经足够接近 $Q$，这说明列符号的改变不可能解释这些误差.如果你自己尝试实验后得到完全不同的结果，可能需要给 $Q$ 的列和 $R$ 的行乘上适当的因子 $\pm1$.）
+
+看起来我们损失了 12 位准确数字.但是，当把这些不准确的矩阵 $Q_2$ 和 $R_2$ 相乘时，奇妙的事情发生了：
+
+\begin{verbatim}
+norm(A-Q2*R2)/norm(A)           How accurate is Q2*R2?
+    ans = 1.432e-15
+\end{verbatim}
+
+乘积 $Q_2R_2$ 达到了整整 15 位的准确度!正如 Wilkinson 所说，$Q_2$ 和 $R_2$ 中的误差一定“有魔鬼般的相关性”.在 $10^{12}$ 分之一的精度上，它们在乘积 $Q_2R_2$ 中相互抵消.
+
+为了突出 $Q_2R_2$ 的这种特殊准确性，再构造一对同样接近 $Q,R$ 的矩阵 $Q_3,R_3$，并将它们相乘：
+
+\begin{verbatim}
+Q3 = Q+1e-4*randn(50);          Set Q3 to a random perturbation of Q
+                                that is closer to Q than Q2 is.
+R3 = R+1e-4*randn(50);          Set R3 to a random perturbation of R
+                                that is closer to R than R2 is.
+norm(A-Q3*R3)/norm(A)           How accurate is Q3*R3?
+    ans = 0.00088
+\end{verbatim}
+
+这一次，乘积中的误差很大.$Q_2$ 并不比 $Q_3$ 更好，$R_2$ 也不比 $R_3$ 更好，但 $Q_2R_2$ 比 $Q_3R_3$ 好 12 个数量级.
+
+在这个实验中，我们没有费心让 $R_3$ 变成上三角矩阵，也没有费心让 $Q_3$ 变成正交矩阵；即使这样做，结果也不会有太大差别.
+
+$Q_2$ 和 $R_2$ 中的误差是前向误差.一般而言，大的前向误差可能来自病态问题，也可能来自不稳定算法（定理 15.1）.在本实验中，误差来自前者.通常，随机三角矩阵的列空间序列作为矩阵元素的函数是极其病态的.
+
+$Q_2R_2$ 中的误差是后向误差或残差.这一误差很小，说明 Householder 三角化是后向稳定的.
+
+\section*{定理}
+
+事实上，对所有矩阵 $A$ 以及满足式 (13.5)、(13.7) 的所有计算机，Householder 三角化都是后向稳定的.下面陈述这一结论.和本书中的大多数稳定性结果一样，我们不给出证明.
+
+结果的形式为
+\begin{equation}
+    \widetilde Q\widetilde R=A+\delta A,
+    \tag{16.1}
+\end{equation}
+其中 $\delta A$ 很小.用文字说，计算得到的 $Q$ 乘以计算得到的 $R$，等于给定矩阵 $A$ 的一个小扰动.
+
+不过，在使用这些符号时有一个微妙之处.对于 $\widetilde R$，含义正如人们所预期：它是在浮点算术中通过 Householder 三角化构造出的上三角矩阵.但是，对于 $\widetilde Q$，我们指的是一个恰好酉的矩阵.
+
+回忆第 10 讲，精确的 $Q$ 是乘积
+\[
+    Q=Q_1Q_2\cdots Q_n,
+\]
+其中 $Q_k$ 是由第 $k$ 步算法 10.1 中确定的向量 $v_k$ 按式 (10.4) 定义的 Householder 反射器.在浮点计算中，我们得到的是向量序列 $\widetilde v_k$.令 $\widetilde Q_k$ 表示由浮点向量 $\widetilde v_k$ 定义的、在数学上而不是在计算机上恰好酉的反射器.现在定义
+\begin{equation}
+    \widetilde Q=\widetilde Q_1\widetilde Q_2\cdots\widetilde Q_n.
+    \tag{16.2}
+\end{equation}
+
+这个恰好酉的矩阵 $\widetilde Q$ 将扮演“计算得到的 $Q$”的角色.这个定义初看可能有些奇怪，但它是自然的.正如第 10 讲所述，在应用中通常根本不会显式形成矩阵 $Q$，所以定义一个更直观的“计算 $Q$”并没有用.真正显式形成的是这些向量，而它们正是式 (16.2) 中所使用的对象.
+
+下面的定理解释了 MATLAB 实验中的现象.
+
+\begin{theorem}
+设矩阵 $A\in\C^{m\times n}$ 的 QR 分解 $A=QR$ 通过 Householder 三角化（算法 10.1）在满足公理 (13.5)、(13.7) 的计算机上计算得到，并令计算因子 $\widetilde Q,\widetilde R$ 按上述方式定义.那么存在 $\delta A\in\C^{m\times n}$，使得
+\begin{equation}
+    \widetilde Q\widetilde R=A+\delta A,
+    \qquad
+    \frac{\|\delta A\|}{\|A\|}
+    =O(\epsmach).
+    \tag{16.3}
+\end{equation}
+\end{theorem}
+
+和本书一贯的用法一样，式 (16.3) 中的 $O(\epsmach)$ 具有第 14 讲所说的精确定义.当 $\epsmach\to0$ 时，这个界对任意固定维数 $m,n$ 的所有矩阵 $A$ 一致成立，但不对 $m,n$ 一致.由于有限维向量空间上的所有范数都等价，无需指定范数（定理 14.1）.
+
+\section*{分析求解 $Ax=b$ 的算法}
+
+我们已经看到，Householder 三角化是后向稳定的，但并不总是在前向意义下准确.（数值线性代数中的大多数矩阵分解也有同样的性质.）现在，QR 分解通常不是最终目的，而是求解方程组、最小二乘问题或特征值问题等其他任务的手段.它的后向稳定性足以使它成为更大算法中的合格组件吗？换句话说，QR 乘积的准确性是否足够，还是还需要分别保证 $Q$ 和 $R$ 的准确性？
+
+令人欣慰的答案是：对大多数目的而言，QR 乘积的准确性确实足够.下面通过几个非常简单的论证说明这一点.
+
+考虑使用 Householder 三角化求解非奇异 $m\times m$ 线性系统 $Ax=b$.这一思想在第 7 讲结尾已经讨论过，下面给出更完整的算法陈述.
+
+\begin{center}
+\fbox{\begin{minipage}{0.92\linewidth}
+\textbf{算法 16.1　用 QR 分解求解 $Ax=b$}
+
+\[
+\begin{array}{rcll}
+QR&=&A,&\text{按算法 10.1 将 $A$ 分解为 $QR$，其中 $Q$ 以反射器乘积表示；}\\
+y&=&Q^*b,&\text{按算法 10.2 构造 $Q^*b$；}\\
+x&=&R^{-1}y,&\text{用回代法求解三角系统 $Rx=y$（算法 17.1）.}
+\end{array}
+\]
+\end{minipage}}
+\end{center}
+
+这个算法是后向稳定的.由于其中三个步骤各自都是后向稳定的，证明并不困难.下面先陈述这三个步骤的后向稳定结果而不证明，再说明如何把它们组合起来.
+
+算法 16.1 的第一步是对 $A$ 做 QR 分解，得到计算矩阵 $\widetilde R,\widetilde Q$.这一过程的后向稳定性已经由式 (16.3) 表达.
+
+第二步是用算法 10.2 计算 $\widetilde Q^*b$.（注意，在这一论证中我们不写 $Q^*b$；因为此时第一步已经完成，计算产生的矩阵不是 $Q$，而是 $\widetilde Q$.）用算法 10.2 计算 $\widetilde Q^*b$ 时会产生舍入误差，因此结果不会恰好等于 $\widetilde Q^*b$，而是某个向量 $\widetilde y$.可以证明，它满足如下后向稳定估计：
+\begin{equation}
+    (\widetilde Q+\delta Q)\widetilde y=b,
+    \qquad
+    \|\delta Q\|=O(\epsmach).
+    \tag{16.4}
+\end{equation}
+和式 (16.3) 一样，这个等式是精确的.换句话说，在浮点算术中应用 Householder 反射器，完全等价于用略有扰动的矩阵 $(\widetilde Q+\delta Q)^{-1}$ 乘以 $b$.
+
+算法 16.1 的最后一步是计算 $\widetilde R^{-1}\widetilde y$ 的回代过程.（同样，在这个阶段可用的是 $\widetilde R$ 和 $\widetilde y$；$R$ 和 $y$ 与当前计算无关.）这一步会引入新的舍入误差，但计算仍然是后向稳定的.这一次，估计为
+\begin{equation}
+    (\widetilde R+\delta R)\widetilde x=\widetilde y,
+    \qquad
+    \frac{\|\delta R\|}{\|\widetilde R\|}
+    =O(\epsmach).
+    \tag{16.5}
+\end{equation}
+和往常一样，左侧等式是精确的.它说明浮点计算结果 $\widetilde x$ 正好是扰动系统 $\widetilde R x=\widetilde y$ 的精确解.
+
+下一讲将完整推导式 (16.5)，而且过程比它听起来更有意思!这个结果将在定理 17.1 中陈述.
+
+现在把式 (16.3)--(16.5) 作为已知条件，就可以得到下面的定理.这是数值线性代数中许多算法的后向稳定性定理都遵循的典型形式.
+
+\begin{theorem}
+算法 16.1 是后向稳定的，满足
+\begin{equation}
+    (A+\Delta A)\widetilde x=b,
+    \qquad
+    \frac{\|\Delta A\|}{\|A\|}
+    =O(\epsmach)
+    \tag{16.6}
+\end{equation}
+其中 $\Delta A\in\C^{m\times m}$.
+\end{theorem}
+
+\textbf{证明.}合并式 (16.4) 和 (16.5)，得到
+\[
+\begin{aligned}
+b
+&=(\widetilde Q+\delta Q)(\widetilde R+\delta R)\widetilde x\\
+&=[\widetilde Q\widetilde R+(\delta Q)\widetilde R
+  +\widetilde Q(\delta R)+(\delta Q)(\delta R)]\widetilde x.
+\end{aligned}
+\]
+因此，由式 (16.3)，
+\[
+    b=
+    [A+\delta A+(\delta Q)\widetilde R
+    +\widetilde Q(\delta R)+(\delta Q)(\delta R)]\widetilde x.
+\]
+这个等式具有 $b=(A+\Delta A)\widetilde x$ 的形式，其中 $\Delta A$ 是四项之和.要证明式 (16.6)，必须说明每一项相对于 $A$ 都很小.
+
+由于 $\widetilde Q\widetilde R=A+\delta A$ 且 $\widetilde Q$ 酉，有
+\[
+    \frac{\|\widetilde R\|}{\|A\|}
+    \le
+    \|\widetilde Q^*\|
+    \frac{\|A+\delta A\|}{\|A\|}
+    =O(1)
+\]
+当 $\epsmach\to0$ 时由式 (16.3) 得到.（如果 $\|\cdot\|=\|\cdot\|_2$，这个量是 $1+O(\epsmach)$；但我们没有对范数作任何假设.）由此以及式 (16.4)，
+\[
+    \frac{\|(\delta Q)\widetilde R\|}{\|A\|}
+    \le
+    \|\delta Q\|\frac{\|\widetilde R\|}{\|A\|}
+    =O(\epsmach).
+\]
+类似地，由式 (16.5)，
+\[
+    \frac{\|\widetilde Q(\delta R)\|}{\|A\|}
+    \le
+    \|\widetilde Q\|
+    \frac{\|\delta R\|}{\|\widetilde R\|}
+    \frac{\|\widetilde R\|}{\|A\|}
+    =O(\epsmach).
+\]
+最后，
+\[
+    \frac{\|(\delta Q)(\delta R)\|}{\|A\|}
+    \le
+    \|\delta Q\|\frac{\|\delta R\|}{\|A\|}
+    =O(\epsmach^2).
+\]
+因此总扰动 $\Delta A$ 满足
+\[
+\begin{aligned}
+\frac{\|\Delta A\|}{\|A\|}
+&\le
+\frac{\|\delta A\|}{\|A\|}
++\frac{\|(\delta Q)\widetilde R\|}{\|A\|}
++\frac{\|\widetilde Q(\delta R)\|}{\|A\|}
++\frac{\|(\delta Q)(\delta R)\|}{\|A\|}\\
+&=O(\epsmach),
+\end{aligned}
+\]
+证毕.
+
+结合定理 12.2、15.1 和 16.2，可以得到关于 $Ax=b$ 解的准确度的如下结果.
+
+\begin{theorem}
+算法 16.1 计算得到的解 $\widetilde x$ 满足
+\begin{equation}
+    \frac{\|\widetilde x-x\|}{\|x\|}
+    =O\bigl(\kappa(A)\epsmach\bigr).
+    \tag{16.7}
+\end{equation}
+\end{theorem}
+
+\section*{习题}
+
+\begin{enumerate}[label=\textbf{16.\arabic*}]
+    \item
+    \begin{enumerate}[label=(\alph*)]
+        \item 令固定的酉矩阵 $Q_1,\ldots,Q_k\in\C^{m\times m}$，考虑对 $A\in\C^{m\times n}$ 计算乘积
+        \[
+            B=Q_k\cdots Q_1A.
+        \]
+        假设计算从右到左进行，使用满足公理 (13.5)、(13.7) 的计算机上的直接浮点运算.证明该算法是后向稳定的.（这里把 $A$ 看作可以扰动的数据；矩阵 $Q_j$ 固定且不允许扰动.）
+        \item 给出一个例子，说明如果把酉矩阵 $Q_j$ 换成任意矩阵 $X_j\in\C^{m\times m}$，上述结论就不再成立.
+    \end{enumerate}
+
+    \item 本题旨在进行一个与本讲 QR 分解实验类似的 SVD 实验.
+    \begin{enumerate}[label=(\alph*)]
+        \item 编写 MATLAB 程序，构造 $50\times50$ 矩阵
+        \[
+            A=U S V^*,
+        \]
+        其中 $U,V$ 是随机正交矩阵，$S$ 是对角矩阵，其对角元素是 $[0,1]$ 中均匀分布的随机数，并按非增顺序排列.让程序计算
+        \[
+            [U_2,S_2,V_2]=\operatorname{svd}(A)
+        \]
+        以及 $\|U-U_2\|$、$\|V-V_2\|$、$\|S-S_2\|$ 和 $\|A-U_2S_2V_2^*\|$.对五个矩阵 $A$ 做这项实验并评论结果.（提示：绘制 $\operatorname{diag}(U_2^*U)$ 和 $\operatorname{diag}(V_2^*V)$ 可能会有所帮助.）
+        \item 固定所计算 SVD 中的符号，使 (a) 中的困难消失.对五个随机矩阵重新运行程序，并评论各种范数.它们与 $\operatorname{cond}(A)$ 有联系吗？
+        \item 把 $S$ 的对角元素替换成它们的六次方，重复 (b).将本实验的结果与 QR 分解实验的结果相比，是否看到了显著差异？
+    \end{enumerate}
+\end{enumerate}
+
+\end{document}

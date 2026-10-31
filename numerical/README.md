@@ -29,7 +29,7 @@ numerical/
 | 数值线性代数后续课件 | [课程目录](https://github.com/JunFengXiang/numerical-computing-lab/blob/main/linear-algebra/README.md)及项目中已上传课件 | 按实际课内进度选范数、QR/SVD、最小二乘、条件数、消元与选主元 |
 | 数值分析教材与章节 | [数值分析入口](https://github.com/JunFengXiang/numerical-computing-lab/blob/main/numerical-analysis/README.md) | 按章节选插值、求根、数值积分、差分、ODE及误差分析 |
 
-旧仓库资料不等于此处都已上传；每次使用实际读取对应文件。教材转录需对照原页或校注，不能凭目录编造章节页码。不重复上传整本教材。
+两本数值教材的现有拆解稿已整理到本仓库：[数值分析](../local_books/numerical-analysis/README.md)、[数值线性代数中文阅读版](../local_books/numerical-linear-algebra/README.md)。旧实验代码仍按上表引用；每次使用实际读取对应文件。教材转录需对照原页或校注，不能凭目录编造章节页码。
 
 ## 一次融合实验怎样验收
 

@@ -1,0 +1,524 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\epsmach}{\varepsilon_{\mathrm{machine}}}
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}
+\renewcommand{\thetheorem}{21.\arabic{theorem}}
+
+\title{数值线性代数\quad 第 21 讲：选主元}
+\author{Lloyd N. Trefethen、David Bau III\quad 中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+\pagestyle{plain}
+
+上一讲我们看到，纯粹形式的高斯消去法是不稳定的。通过置换正在操作的矩阵的行顺序，可以控制这种不稳定性；这种操作称为选主元（pivoting）。自 20 世纪 50 年代以来，选主元一直是高斯消去计算的标准组成部分。
+
+\section*{主元}
+
+在高斯消去的第 $k$ 步，为了把第 $k+1,\ldots,m$ 行第 $k$ 列的条目化为零，需要从这些行中减去第 $k$ 行的适当倍数。在这个操作中，第 $k$ 行、第 $k$ 列，尤其是条目 $x_{kk}$ 扮演特殊角色。我们称 $x_{kk}$ 为主元。工作矩阵 $X$ 的子矩阵 $X_{k+1:m,k:m}$ 中的每个条目，都要减去“第 $k$ 行中的一个数乘以第 $k$ 列中的一个数，再除以 $x_{kk}$”所得的乘积：
+
+\begin{equation*}
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+&x_{kk}&\bm{\times}&\bm{\times}&\bm{\times}\\
+&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&\times&\times&\times&\times
+\end{bmatrix}
+\longrightarrow
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+&x_{kk}&\bm{\times}&\bm{\times}&\bm{\times}\\
+&0&\bm{\times}&\bm{\times}&\bm{\times}\\
+&0&\bm{\times}&\bm{\times}&\bm{\times}\\
+&0&\bm{\times}&\bm{\times}&\bm{\times}
+\end{bmatrix}.
+\end{equation*}
+
+不过，没有理由一定要选择第 $k$ 行和第 $k$ 列来做消去。例如，也可以把第 $k$ 列中的零元通过将某个满足 $k<i\le m$ 的第 $i$ 行的倍数加到其他行中来引入；此时 $x_{ik}$ 将成为主元。以 $k=2,\ i=4$ 为例：
+
+\begin{equation*}
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&x_{ik}&\bm{\times}&\bm{\times}&\bm{\times}\\
+&\times&\times&\times&\times
+\end{bmatrix}
+\longrightarrow
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+&0&\bm{\times}&\bm{\times}&\bm{\times}\\
+&0&\bm{\times}&\bm{\times}&\bm{\times}\\
+&x_{ik}&\bm{\times}&\bm{\times}&\bm{\times}\\
+&0&\bm{\times}&\bm{\times}&\bm{\times}
+\end{bmatrix}.
+\end{equation*}
+
+同样，也可以引入第 $j$ 列而不是第 $k$ 列的零元。以 $k=2,\ i=4,\ j=3$ 为例：
+
+\begin{equation*}
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&\bm{\times}&x_{ij}&\bm{\times}&\bm{\times}\\
+&\times&\times&\times&\times
+\end{bmatrix}
+\longrightarrow
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+&\bm{\times}&0&\bm{\times}&\bm{\times}\\
+&\bm{\times}&0&\bm{\times}&\bm{\times}\\
+&\times&x_{ij}&\bm{\times}&\bm{\times}\\
+&\bm{\times}&0&\bm{\times}&\bm{\times}
+\end{bmatrix}.
+\end{equation*}
+
+总之，只要非零，我们可以自由选择 $X_{k:m,k:m}$ 中的任意条目作为主元。$x_{kk}=0$ 的可能性意味着，即使从纯数学角度看，有时也必须灵活选择主元。不过从数值稳定性的角度看，即使 $x_{kk}\ne0$，只要有更大的元素可用，也最好进行选主元。在实践中，通常会在候选条目中选择绝对值最大的数作为主元。
+
+如果允许矩阵中出现任意模式的零元，消去过程的结构很快就会变得混乱。为了保留上一讲所描述的三角结构，有一个简单办法：我们不把主元 $x_{ij}$ 看作留在原位置，而是假设在第 $k$ 步将工作矩阵的行和列置换，把 $x_{ij}$ 移到 $(k,k)$ 位置。消去完成后，就像不带主元的高斯消去一样，把第 $k$ 列的第 $k+1,\ldots,m$ 个条目化为零。这种行置换以及可能伴随的列置换，就是通常所说的选主元。
+
+从概念上说，行和列被置换这一点不可或缺。至于在计算机上是否真的物理交换它们，则不那么明确。在某些实现中，内存中的数据确实在每一步选主元时交换；在另一些实现中，则通过带置换索引向量的间接寻址实现等价效果。哪一种方法最好，取决于机器和许多其他因素。
+
+\section*{部分主元选取}
+
+如果第 $k$ 步把 $X_{k:m,k:m}$ 中的每个条目都作为可能的主元，就需要检查 $O((m-k)^2)$ 个条目来找出最大者。对各步求和，选择主元的总成本为 $O(m^3)$ 次运算，这会显著增加高斯消去本身的成本，还可能带来在矩阵所有条目之间进行不可预测的全局通信的困难。这种昂贵的策略称为完全选主元（complete pivoting）。
+
+实践中，只需考察少得多的条目，也能找到同样好的主元。标准方法是部分选主元（partial pivoting）。在这种方法中，只交换行。每一步选择第 $k$ 列中 $m-k+1$ 个次对角线条目里绝对值最大的一个作为主元；每步选取主元只需 $O(m-k)$ 次运算，总成本因而为 $O(m^2)$。为了把第 $k$ 个主元移到 $(k,k)$ 位置，不需要置换列，只需把第 $k$ 行与包含主元的那一行交换。
+
+\begin{equation*}
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&x_{ik}&\bm{\times}&\bm{\times}&\bm{\times}\\
+&\times&\times&\times&\times
+\end{bmatrix}
+\xrightarrow{P_k}
+\begin{bmatrix}
+\times&\times&\times&\times&\times\\
+x_{ik}&\bm{\times}&\bm{\times}&\bm{\times}&\bm{\times}\\
+&\times&\times&\times&\times\\
+&\times&\times&\times&\times\\
+&\times&\times&\times&\times
+\end{bmatrix}
+\xrightarrow{L_k}
+\begin{bmatrix}
+x_{ik}&\bm{\times}&\bm{\times}&\bm{\times}&\bm{\times}\\
+0&\bm{\times}&\bm{\times}&\bm{\times}&\bm{\times}\\
+0&\bm{\times}&\bm{\times}&\bm{\times}&\bm{\times}\\
+0&\bm{\times}&\bm{\times}&\bm{\times}&\bm{\times}\\
+0&\bm{\times}&\bm{\times}&\bm{\times}&\bm{\times}
+\end{bmatrix}.
+\end{equation*}
+
+和往常一样，可以把这个算法写成矩阵乘积。上一讲我们看到，一步消去对应于在左侧乘以一个初等下三角矩阵 $L_k$。部分选主元在每一步消元前，还要在工作矩阵左侧乘以一个置换矩阵 $P_k$。（置换矩阵是除了每行每列各有一个 1 之外其余元素全为 0 的矩阵；也就是说，它可以由单位矩阵置换行或列得到。）经过 $m-1$ 步后，$A$ 变成上三角矩阵 $U$：
+
+\begin{equation}
+L_{m-1}P_{m-1}\cdots L_2P_2L_1P_1A=U.
+\tag{21.1}
+\end{equation}
+
+\section*{例子}
+
+为了看清楚其中发生了什么，回到上一讲的数值例子 (20.3)：
+
+\begin{equation}
+A=
+\begin{bmatrix}
+2&1&1&0\\
+4&3&3&1\\
+8&7&9&5\\
+6&7&9&8
+\end{bmatrix}.
+\tag{21.2}
+\end{equation}
+
+使用部分选主元时，第一步交换第一行和第三行（即在左侧乘以 $P_1$）：
+
+$$
+P_1A=
+\begin{bmatrix}
+0&0&1&0\\
+0&1&0&0\\
+1&0&0&0\\
+0&0&0&1
+\end{bmatrix}
+\begin{bmatrix}
+2&1&1&0\\
+4&3&3&1\\
+8&7&9&5\\
+6&7&9&8
+\end{bmatrix}
+=
+\begin{bmatrix}
+8&7&9&5\\
+4&3&3&1\\
+2&1&1&0\\
+6&7&9&8
+\end{bmatrix}.
+$$
+
+现在第一步消去（即在左侧乘以 $L_1$）为
+
+$$
+L_1P_1A=
+\begin{bmatrix}
+1&0&0&0\\
+-\frac12&1&0&0\\
+-\frac14&0&1&0\\
+-\frac34&0&0&1
+\end{bmatrix}
+\begin{bmatrix}
+8&7&9&5\\
+4&3&3&1\\
+2&1&1&0\\
+6&7&9&8
+\end{bmatrix}
+=
+\begin{bmatrix}
+8&7&9&5\\
+0&-\frac12&-\frac32&-\frac32\\
+0&-\frac34&-\frac54&-\frac54\\
+0&\frac74&\frac94&\frac{17}4
+\end{bmatrix}.
+$$
+
+然后交换第二行和第四行（乘以 $P_2$）：
+
+$$
+P_2L_1P_1A=
+\begin{bmatrix}
+1&0&0&0\\
+0&0&0&1\\
+0&0&1&0\\
+0&1&0&0
+\end{bmatrix}
+\begin{bmatrix}
+8&7&9&5\\
+0&-\frac12&-\frac32&-\frac32\\
+0&-\frac34&-\frac54&-\frac54\\
+0&\frac74&\frac94&\frac{17}4
+\end{bmatrix}
+=
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&-\frac34&-\frac54&-\frac54\\
+0&-\frac12&-\frac32&-\frac32
+\end{bmatrix}.
+$$
+
+第二步消去为
+
+$$
+L_2P_2L_1P_1A=
+\begin{bmatrix}
+1&0&0&0\\
+0&1&0&0\\
+0&-\frac37&1&0\\
+0&-\frac27&0&1
+\end{bmatrix}
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&-\frac34&-\frac54&-\frac54\\
+0&-\frac12&-\frac32&-\frac32
+\end{bmatrix}
+=
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&0&-\frac27&\frac47\\
+0&0&-\frac67&-\frac27
+\end{bmatrix}.
+$$
+
+接着交换第三行和第四行（乘以 $P_3$）：
+
+$$
+P_3L_2P_2L_1P_1A=
+\begin{bmatrix}
+1&0&0&0\\
+0&1&0&0\\
+0&0&0&1\\
+0&0&1&0
+\end{bmatrix}
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&0&-\frac27&\frac47\\
+0&0&-\frac67&-\frac27
+\end{bmatrix}
+=
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&0&-\frac67&-\frac27\\
+0&0&-\frac27&\frac47
+\end{bmatrix}.
+$$
+
+最后一步消去（乘以 $L_3$）使用乘子 $1/3$：
+
+$$
+L_3P_3L_2P_2L_1P_1A=
+\begin{bmatrix}
+1&0&0&0\\
+0&1&0&0\\
+0&0&1&0\\
+0&0&-\frac13&1
+\end{bmatrix}
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&0&-\frac67&-\frac27\\
+0&0&-\frac27&\frac47
+\end{bmatrix}
+=
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&0&-\frac67&-\frac27\\
+0&0&0&\frac23
+\end{bmatrix}.
+$$
+
+\section*{$PA=LU$ 分解与第三次“幸运”}
+
+我们刚刚计算出了 $A$ 的 LU 分解吗？还不完全是，但已经很接近了。事实上，我们计算的是 $PA$ 的 LU 分解，其中 $P$ 是一个置换矩阵。结果为
+
+\begin{equation}
+P A=L U,
+\tag{21.3}
+\end{equation}
+
+其中
+
+$$
+P=P_3P_2P_1=
+\begin{bmatrix}
+0&0&1&0\\
+0&0&0&1\\
+0&1&0&0\\
+1&0&0&0
+\end{bmatrix},
+\quad
+L=
+\begin{bmatrix}
+1&0&0&0\\
+\frac34&1&0&0\\
+\frac12&-\frac27&1&0\\
+\frac14&-\frac37&\frac13&1
+\end{bmatrix},
+\quad
+U=
+\begin{bmatrix}
+8&7&9&5\\
+0&\frac74&\frac94&\frac{17}4\\
+0&0&-\frac67&-\frac27\\
+0&0&0&\frac23
+\end{bmatrix}.
+$$
+
+这个公式应与式 (20.5) 对照。那里出现整数、这里出现分数，并不是一般性的区别，而是由我们对 $A$ 的选择造成的偶然现象。真正重要的区别是：这里 $L$ 的所有次对角线条目都满足绝对值不超过 1。这是选主元引入的性质
+
+$$
+|x_{kk}|=\max_{i\ge k}|x_{ik}|
+$$
+
+的结果。
+
+式 (21.3) 的来源并不明显。我们的消去过程是
+
+\begin{equation}
+L_3P_3L_2P_2L_1P_1A=U,
+\tag{21.4a}
+\end{equation}
+
+这看起来完全不像下三角结构。但第三次幸运帮助了我们：这六个初等操作可以重新排列为
+
+\begin{equation}
+L_3P_3L_2P_2L_1P_1
+=
+L'_3L'_2L'_1P_3P_2P_1,
+\tag{21.4}
+\end{equation}
+
+其中 $L'_k$ 与 $L_k$ 具有相同的结构，只是次对角线条目被重新置换。具体地，定义
+
+$$
+L'_3=L_3,\qquad
+L'_2=P_3L_2P_3^{-1},\qquad
+L'_1=P_3P_2L_1P_2^{-1}P_3^{-1}.
+$$
+
+因为每个定义只涉及满足 $j>k$ 的置换 $P_j$，所以很容易验证 $L'_k$ 与 $L_k$ 具有相同的结构。计算这些矩阵的乘积可得
+
+$$
+\begin{aligned}
+L'_3L'_2L'_1P_3P_2P_1
+&=L_3(P_3L_2P_3^{-1})
+(P_3P_2L_1P_2^{-1}P_3^{-1})P_3P_2P_1\\
+&=L_3P_3L_2P_2L_1P_1,
+\end{aligned}
+$$
+
+这正是式 (21.4)。
+
+一般地，对 $m\times m$ 矩阵，部分选主元高斯消去给出的式 (21.1) 可以写成
+
+\begin{equation}
+(L'_{m-1}\cdots L'_2L'_1)
+(P_{m-1}\cdots P_2P_1)A=U,
+\tag{21.5}
+\end{equation}
+
+其中
+
+\begin{equation}
+L'_k=P_{m-1}\cdots P_{k+1}L_kP_{k+1}^{-1}\cdots P_{m-1}^{-1}.
+\tag{21.6}
+\end{equation}
+
+矩阵 $L'_k$ 的乘积是单位下三角矩阵，只需像不带主元的高斯消去那样将次对角线条目变号即可求逆。令
+
+$$
+L=(L'_{m-1}\cdots L'_2L'_1)^{-1},
+\qquad
+P=P_{m-1}\cdots P_2P_1,
+$$
+
+便有
+
+\begin{equation}
+PA=LU.
+\tag{21.7}
+\end{equation}
+
+一般而言，任意方阵 $A$（奇异或非奇异）都有分解 (21.7)：$P$ 是置换矩阵，$L$ 是单位下三角矩阵且其下三角条目绝对值不超过 1，$U$ 是上三角矩阵。部分选主元是如此普遍的做法，以至于这种分解通常就简称为 $A$ 的 LU 分解。
+
+著名的公式 (21.7) 有一个简单解释。带部分选主元的高斯消去等价于以下过程：
+
+1. 按照 $P$ 置换 $A$ 的行；
+2. 对 $PA$ 应用不带主元的高斯消去。
+
+当然，实践中并不是这样执行部分选主元，因为事先并不知道 $P$。
+
+下面给出算法的正式表述。
+
+\subsection*{算法 21.1\quad 带部分选主元的高斯消去法}
+
+\begin{verbatim}
+U = A, L = I, P = I
+for k = 1 to m - 1
+    Select i >= k to maximize |u_ik|
+    u_k,k:m <-> u_i,k:m       (interchange two rows)
+    l_k,1:k-1 <-> l_i,1:k-1
+    p_k,: <-> p_i,:
+    for j = k + 1 to m
+        l_jk = u_jk/u_kk
+        u_j,k:m = u_j,k:m - l_jk u_k,k:m
+\end{verbatim}
+
+从最高阶项看，该算法所需的浮点运算次数与不带主元的高斯消去相同，即式 (20.8) 中的 $\frac23m^3$。和算法 20.1 一样，如果需要，可以通过把 $U$ 和 $L$ 覆写到保存 $A$ 的同一个数组中来减少内存使用。
+
+实践中当然不会把 $P$ 显式表示成矩阵。可以在每一步交换行，也可以像前面所说的那样用置换向量取得等价效果。
+
+\section*{完全选主元}
+
+完全选主元需要花费相当多的时间来选择主元。实践中很少使用它，因为稳定性的改进很有限。不过，我们说明一下这种情形下代数形式如何变化。
+
+在矩阵形式中，完全选主元在每一步消去前，先在左侧用置换矩阵 $P_k$ 置换行，同时在右侧用置换矩阵 $Q_k$ 置换列：
+
+\begin{equation}
+L_{m-1}P_{m-1}\cdots L_2P_2L_1P_1
+A Q_1Q_2\cdots Q_{m-1}=U.
+\tag{21.8}
+\end{equation}
+
+这同样不是严格意义上 $A$ 的 LU 分解，但已经很接近。如果 $L'_k$ 按式 (21.6) 定义（不涉及列置换），则
+
+\begin{equation}
+(L'_{m-1}\cdots L'_2L'_1)
+(P_{m-1}\cdots P_2P_1)A
+(Q_1Q_2\cdots Q_{m-1})=U.
+\tag{21.9}
+\end{equation}
+
+令
+
+$$
+L=(L'_{m-1}\cdots L'_2L'_1)^{-1},
+\qquad
+P=P_{m-1}\cdots P_2P_1,
+\qquad
+Q=Q_1Q_2\cdots Q_{m-1},
+$$
+
+就得到
+
+\begin{equation}
+PAQ=LU.
+\tag{21.10}
+\end{equation}
+
+\section*{习题}
+
+\begin{enumerate}[label=\textbf{21.\arabic*}]
+    \item 设 $A$ 是本讲和上一讲讨论的 $4\times4$ 矩阵 (20.3)。
+    \begin{enumerate}[label=(\alph*)]
+        \item 由式 (20.5) 求 $\det A$。
+        \item 由式 (21.3) 求 $\det A$。
+        \item 描述如何利用带部分选主元的高斯消去法求一般方阵的行列式。
+    \end{enumerate}
+
+    \item 假设 $A\in\mathbb{C}^{m\times m}$ 如习题 20.2 一样是带宽为 $2p+1$ 的带状矩阵，并且通过带部分选主元的高斯消去计算得到分解 $PA=LU$。关于 $L$ 和 $U$ 的稀疏结构，你能得到什么结论？
+
+    \item 考虑按列而不是按行选主元的高斯消去，得到分解 $AQ=LU$，其中 $Q$ 是置换矩阵。
+    \begin{enumerate}[label=(\alph*)]
+        \item 证明当 $A$ 非奇异时，这样的分解总是存在。
+        \item 证明当 $A$ 奇异时，这样的分解不一定存在。
+    \end{enumerate}
+
+    \item 高斯消去法可以用来计算非奇异矩阵 $A\in\mathbb{C}^{m\times m}$ 的逆 $A^{-1}$，尽管实践中很少真的需要这样做。
+    \begin{enumerate}[label=(\alph*)]
+        \item 描述一个通过求解 $m$ 个方程组来计算 $A^{-1}$ 的算法，并证明其渐近运算量为 $\frac83m^3$ 次浮点运算。
+        \item 利用稀疏性描述该算法的一个变体，使运算量降为 $2m^3$ 次浮点运算。
+        \item 假设要解 $n$ 个方程组 $Ax_j=b_j$，或等价地解右端为 $B\in\mathbb{C}^{m\times n}$ 的块方程组 $AX=B$。对于以下两种方法，渐近运算量（关于 $m,n$ 的函数）分别是多少：(i) 直接利用 LU 分解；(ii) 预先计算 $A^{-1}$。
+    \end{enumerate}
+
+    \item 假设 $A\in\mathbb{C}^{m\times m}$ 是 Hermitian 矩阵，或在实数情形下是对称矩阵（但不一定正定）。
+    \begin{enumerate}[label=(\alph*)]
+        \item 描述一种对称选主元策略，在保持 Hermitian 结构的同时，仍然得到下三角单位矩阵，且其条目满足 $|\ell_{ij}|\le1$。
+        \item 你的算法得到的矩阵分解具有什么形式？
+        \item 其渐近运算量是多少？
+    \end{enumerate}
+
+    \item 假设 $A\in\mathbb{C}^{m\times m}$ 严格列对角占优，即对每个 $k$，
+    \begin{equation}
+        |a_{kk}|>\sum_{j\ne k}|a_{jk}|.
+    \tag{21.11}
+    \end{equation}
+    证明对 $A$ 应用带部分选主元的高斯消去时，不会发生行交换。
+
+    \item 在第 20 讲中，我们利用向量 $e_k$ 和 $\ell_k$ 解释了“两次幸运”。请利用这些向量解释本讲中的“第三次幸运”。
+\end{enumerate}
+
+\end{document}

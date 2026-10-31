@@ -1,0 +1,429 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\title{数值线性代数\quad 第 37 讲：从 Lanczos 迭代到 Gauss 求积}
+\author{Lloyd N. Trefethen、David Bau III\\中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent
+\textbf{原书页码：}285--292；\quad
+\textbf{目标 PDF 页码：}300--307。
+
+\section*{正交多项式}
+
+如果把离散向量看成定义在 $[-1,1]$ 上的连续函数，把矩阵 $A$ 取为
+逐点乘以 $x$ 的算子，那么 Lanczos 迭代就变成了通过三项递推构造正交
+多项式的标准过程。再向前一步，就得到 Gauss 求积公式；它的节点和权重
+可以通过求解一个对称三对角矩阵的特征值问题来计算。
+
+第 7 讲讨论过 QR 分解的连续类比。现在我们讨论 Lanczos 迭代的连续类比，
+仍然只考虑实向量（现在是函数）和实对称矩阵（现在是线性算子）。
+
+首先，把 $\mathbb R^m$ 换成 $L^2[-1,1]$，即定义在 $[-1,1]$ 上的实值函数空间。
+对 $u,v\in L^2[-1,1]$，定义内积
+
+\begin{equation}
+(u,v)=\int_{-1}^{1}u(x)v(x)\,dx,
+\tag{37.1}
+\end{equation}
+
+函数 $u\in L^2[-1,1]$ 的范数为 $\lVert u\rVert=(u,u)^{1/2}$。
+
+在第 7 讲中，$A$ 是一个“$[-1,1]\times n$ 矩阵”，其列为 $x$ 的各次幂。
+这里为了使用 Lanczos 迭代，$A$ 应当是方的而不是长方的。我们把它取为
+对应于逐点乘以 $x$ 的“$[-1,1]\times[-1,1]$ 矩阵”，即线性算子
+
+\begin{equation}
+(Au)(x)=xu(x)
+\tag{37.2}
+\end{equation}
+
+对每个 $u\in L^2[-1,1]$ 成立。这个算子类似于一个对角矩阵，只不过“对角线”
+上连续排列着 $x\in[-1,1]$ 的全部取值。若使用核
+$k(x,y)=x\delta(x-y)$（其中 $\delta$ 是 Dirac $\delta$ 函数）的积分算子，
+也可以把这个“对角矩阵”想法严格化。特别地，$A$ 是对称的，因此 Arnoldi
+过程会特化为 Lanczos 过程。
+
+还需要固定初始函数。约定 $b(x)$ 为一个非零常数；相应的归一化初始函数为
+$q_1(x)=1/\sqrt{2}$。于是算法 36.1 变成下面的形式。
+
+\begin{center}
+\fbox{\begin{minipage}{0.88\textwidth}
+\textbf{算法 37.1\quad 正交多项式的构造}
+
+\[
+\beta_0=0,\qquad q_0(x)=0,\qquad q_1(x)=1/\sqrt{2}.
+\]
+
+\begin{enumerate}[leftmargin=2.6em,itemsep=0pt]
+\item 对 $n=1,2,3,\ldots$：
+\begin{enumerate}[label=\arabic*.,leftmargin=2.6em,itemsep=0pt]
+\item $v(x)=xq_n(x)$；
+\item $\alpha_n=(q_n,v)$；
+\item $v(x)=v(x)-\beta_{n-1}q_{n-1}(x)-\alpha_nq_n(x)$；
+\item $\beta_n=\lVert v\rVert$；
+\item $q_{n+1}(x)=v(x)/\beta_n$。
+\end{enumerate}
+\end{enumerate}
+\end{minipage}}
+\end{center}
+
+注意，多项式 $q_1,q_2,q_3,\ldots$ 的次数依次为 $0,1,2,\ldots$；因此，
+该序列中次数为 $n$ 的多项式是 $q_{n+1}$。
+
+算法 37.1 可以在许多表面上与线性代数无关的书中找到。它正是构造区间
+$[-1,1]$ 上正交的 Legendre 多项式时使用的通常三项递推。不过，本书的记号
+和归一化方式比较特殊：通常把次数为 $n$ 的 Legendre 多项式写成 $P_n(x)$，
+并归一化为 $P_n(1)=1$。因此，本讲的 $q_{n+1}(x)$ 是通常 $P_n(x)$ 的
+一个标量倍。下文仍称它为 Legendre 多项式。
+
+第 7 讲的式（7.11）和图 7.1 已经讨论过 Legendre 多项式，当时是通过上面
+提到的“$[-1,1]\times n$ 幂矩阵”做 Gram--Schmidt 分解得到的。这个矩阵
+正是当前初始向量 $b$ 和算子 $A$ 生成的 Krylov 矩阵（式（33.6））；
+因此，第 7 讲中的 Gram--Schmidt 过程与这里的 Lanczos 过程产生了相同效果。
+
+我们把算法 37.1 称为“正交多项式的构造”，而不是“Legendre 多项式的构造”，
+因为它实际上更加一般。如果在式（37.1）的积分中加入非恒定的正权函数
+$w(x)$，就会得到其他正交多项式族，例如 Chebyshev 多项式和 Jacobi 多项式。
+本讲的全部推导都适用于这些更一般的族，但不展开细节。
+
+\section*{Jacobi 矩阵}
+
+前面关于 Arnoldi 和 Lanczos 迭代的所有公式，仍然适用于刚才描述的多项式
+正交化过程。当然，需要正确解释其中的对象：把 $1,2,\ldots,m$ 换成
+$[-1,1]$，把通常的向量内积换成式（37.1）。例如，现在有两个
+“$[-1,1]\times n$ 矩阵”
+
+\begin{equation}
+K_n=\begin{bmatrix}1&x&\cdots&x^{n-1}\end{bmatrix},
+\qquad
+Q_n=\begin{bmatrix}q_1(x)&q_2(x)&\cdots&q_n(x)\end{bmatrix},
+\tag{37.3}
+\end{equation}
+
+并且它们满足与式（36.4）完全相同的关系。正如刚才所说，$K_n$ 就是第 7
+讲中称为 $A$ 的矩阵。
+
+上一讲描述的三对角矩阵 $\{T_n\}$ 在这里尤其重要。它们仍然是 $n\times n$
+的离散矩阵，并通过式（36.5）和（36.6）与 $Q_n$、$A$ 相关。其元素由式
+（36.1）的连续类比给出：
+
+\begin{equation}
+t_{ij}=(q_i(x),xq_j(x)).
+\tag{37.4}
+\end{equation}
+
+在正交多项式的语境下，矩阵族 $\{T_n\}$ 称为 Jacobi 矩阵。三项递推
+（36.7）变成
+
+\begin{equation}
+xq_n(x)=\beta_{n-1}q_{n-1}(x)+\alpha_nq_n(x)+\beta_nq_{n+1}(x).
+\tag{37.5}
+\end{equation}
+
+算法 37.1 的写法可能会造成误解：它看起来似乎每一步都需要进行非平凡
+计算，包括计算定义 $\alpha_n$ 和 $\beta_n$ 的内积 $(q_n,v)$ 与范数
+$\lVert v\rVert$。如果式（37.1）包含任意权函数 $w(x)$，这些计算确实
+不简单。然而，对与 Legendre 多项式对应的特殊选择 $w(x)=1$，以及其他
+经典多项式族的一些选择，$\{\alpha_n\}$、$\{\beta_n\}$ 都有解析表达式。
+在式（36.3）的记号下，Legendre 多项式满足
+
+\begin{equation}
+\alpha_n=0,\qquad
+\beta_n=\frac{1}{2}\left(1-(2n)^{-2}\right)^{-1/2}.
+\tag{37.6}
+\end{equation}
+
+使用这些公式后，算法 37.1 就变成了一个机械的三项递推，除此之外不再需要
+进行数值积分或范数计算。
+
+\section*{特征多项式}
+
+在正交多项式的语境下，Arnoldi/Lanczos 逼近问题（36.8）会变成什么？
+对于这里特殊选择的 $b$ 和 $A$，有
+$p(A)b=p(x)/\sqrt{2}$。因此，式（36.8）可以写成：
+
+\begin{center}
+\fbox{\begin{minipage}{0.88\textwidth}
+\textbf{正交多项式逼近问题。}
+寻找 $p^n\in\mathcal P^n$，使得
+\[
+\lVert p^n(x)\rVert=\min.
+\tag{37.7}
+\]
+\end{minipage}}
+\end{center}
+
+根据定理 36.1，解就是矩阵 $T_n$ 的特征多项式。
+
+由此很快可以得到一个重要结论。任意 $p\in\mathcal P^n$ 都可以写成
+
+\[
+p(x)=Cq_{n+1}(x)+Q_ny,
+\]
+
+其中 $C$ 是常数——它等于 $q_{n+1}(x)$ 首项系数的倒数。又由于函数族
+$\{q_n(x)\}$ 两两正交，有
+
+\[
+\lVert p\rVert=(C^2+\lVert y\rVert^2)^{1/2}.
+\]
+
+因此，式（37.7）的最小值在取 $y=0$ 时达到。换句话说，$p^n(x)$ 与
+$q_{n+1}(x)$ 只相差一个常数因子。定理 37.1 给出这一结论；定理的最后
+一个断言将在习题 37.2 中证明。
+
+\textbf{定理 37.1.}
+设 $\{q_n(x)\}$ 是算法 37.1 生成的正交多项式序列，$\{T_n\}$ 是相应的
+三对角 Jacobi 矩阵序列，$p^n$ 是 $T_n$ 的特征多项式。那么对
+$n=0,1,2,\ldots$，
+
+\begin{equation}
+p^n(x)=C_nq_{n+1}(x),
+\tag{37.8}
+\end{equation}
+
+其中 $C_n$ 是常数。特别地，$q_{n+1}(x)$ 的零点就是 $T_n$ 的特征值。
+这 $n$ 个零点互异，并且都位于开区间 $(-1,1)$ 内。
+
+这个定理在计算上非常重要。要确定 Legendre 多项式的零点，只需计算相应
+Jacobi 矩阵的特征值，而矩阵元素由式（37.6）显式给出。正如前面几讲所见，
+$n\times n$ 对称三对角矩阵的特征值问题是良态的，并且可以很快求解，
+只需 $O(n^2)$ 次浮点运算。相比之下，如果从多项式系数出发直接计算
+Legendre 多项式的零点，则效率低且数值上不稳定。
+
+\section*{求积公式}
+
+Legendre 多项式的零点具有计算意义，是因为它们正是 Gauss--Legendre 求积
+公式的节点。
+
+先简要回顾数值求积的思想。设 $f(x)$ 定义在 $[-1,1]$ 上，我们希望计算
+
+\begin{equation}
+I(f)=\int_{-1}^{1}f(x)\,dx.
+\tag{37.9}
+\end{equation}
+
+（如果感兴趣的积分区间不是 $[-1,1]$，可以通过线性变量代换处理。）
+自然的做法是用有限和近似 $I(f)$：
+
+\begin{equation}
+I_n(f)=\sum_{j=1}^{n}w_jf(x_j),
+\tag{37.10}
+\end{equation}
+
+其中节点（或求积点）$x_j\in[-1,1]$ 以及相应权重 $w_j$ 与 $f$ 无关。
+这就是 $n$ 点求积公式，这一概念可以追溯到 Newton。今天计算机上进行的
+大多数数值积分，都以各种此类公式为基础，常与自适应误差估计、区间细分
+以及阶数控制结合使用。
+
+任意一组节点都可以作为求积公式的候选。下面的结果是 Vandermonde 矩阵
+非奇异性的一个推论（习题 37.3）。
+
+\textbf{定理 37.2.}
+设节点 $\{x_j\}$ 是 $[-1,1]$ 中任意 $n$ 个互异点。那么存在唯一一组
+权重 $\{w_j\}$，使求积公式（37.10）至少具有 $n-1$ 阶精度；也就是说，
+对任意次数不超过 $n-1$ 的多项式 $f(x)$，该公式都是精确的。
+
+如果节点 $\{x_j\}$ 从 $-1$ 到 $1$ 等距选取，定理给出的求积公式称为
+Newton--Cotes 公式，是熟知的梯形公式和 Simpson 公式的 $n$ 点推广。
+Newton--Cotes 公式具有定理保证的 $n-1$ 阶精度，但没有更高的精度。
+当 $n$ 较小时，这些公式简单而有用；当 $n$ 较大时，它们的权重 $w_j$
+会出现交替符号，并且振幅很大，量级可达 $2^n$，从而造成数值不稳定。
+
+\section*{Gauss 求积}
+
+Gauss 求积的想法是：不仅优化权重 $\{w_j\}$，也优化节点 $\{x_j\}$，
+尽可能提高式（37.10）的精度阶数。结果表明，存在唯一一组节点和权重
+能够达到这一目标，所得公式的精度阶数为 $2n-1$。与 $n-1$ 阶相比，这是
+显著改进：对光滑函数和固定的函数求值次数，通常可以把可获得的准确数字
+大致翻倍。此外，所有权重 $w_j$ 都为正，因此即使 $n$ 很大，公式仍然稳定。
+
+使 $n$ 点求积公式精度翻倍的神奇节点是什么？它们正是 Legendre 多项式
+$q_{n+1}(x)$ 的零点。Gauss（或 Gauss--Legendre）求积公式定义为：
+取定理 37.2 给出的求积公式，并令节点 $x_1,\ldots,x_n$ 为 $q_{n+1}(x)$
+的零点。
+
+\textbf{定理 37.3.}
+$n$ 点 Gauss--Legendre 求积公式的精度阶数恰为 $2n-1$，并且没有任何
+求积公式（37.10）的精度阶数能够超过它。
+
+\textbf{证明。}
+给定任意一组互异节点 $\{x_j\}$，令
+
+\[
+f(x)=\prod_{j=1}^{n}(x-x_j)^2,
+\]
+
+则 $f$ 是次数为 $2n$ 的多项式，且 $I(f)>0$；但是由于对每个节点都有
+$f(x_j)=0$，所以 $I_n(f)=0$。因此，该求积公式不可能对所有次数为 $2n$
+的多项式都精确。
+
+另一方面，设 $f(x)$ 是任意次数不超过 $2n-1$ 的多项式，并取
+$\{x_j\}$ 为 Gauss 求积节点，即 $\{q_{n+1}(x)\}$ 的零点。可以因式分解为
+
+\[
+f(x)=g(x)q_{n+1}(x)+r(x),
+\]
+
+其中 $g(x)$ 的次数不超过 $n-1$，余项 $r(x)$ 也是次数不超过 $n-1$
+的多项式。（事实上，$r(x)$ 是 $f$ 在节点 $\{x_j\}$ 上的次数不超过
+$n-1$ 的插值多项式。）由于 $q_{n+1}(x)$ 与所有低次数多项式正交，
+$I(gq_{n+1})=0$。同时，对每个节点 $x_j$ 都有
+$g(x_j)q_{n+1}(x_j)=0$，所以 $I_n(gq_{n+1})=0$。由于 $I$ 和 $I_n$
+都是线性算子，上述两式说明 $I(f)=I(r)$ 且 $I_n(f)=I_n(r)$。
+而 $r(x)$ 的次数不超过 $n-1$，根据定理 37.2 有 $I(r)=I_n(r)$，
+合并即得 $I(f)=I_n(f)$。证毕。
+
+\section*{通过 Jacobi 矩阵实现 Gauss 求积}
+
+六页之内，我们从 Lanczos 迭代走到了 Legendre 多项式，又从 Legendre
+多项式走到了 Gauss 求积；还得到了一个快速而稳定的 Gauss 求积节点算法：
+只需构造 Jacobi 矩阵 $\{T_n\}$ 并计算其特征值。
+
+最后一个观察可以把故事补完整：不仅节点，Gauss 求积公式的权重也可以
+从 $T_n$ 的特征值问题得到。第 $j$ 个 Gauss 权重恰好为
+$w_j=2(v_j)_1^2$，也就是 $T_n$ 第 $j$ 个特征向量的第一分量的平方再乘以 2。
+这里不作证明。对于由带一般权函数 $w(x)$ 的内积（37.1）定义的 Gauss 求积
+公式，也有完全类似的结果。
+
+\textbf{定理 37.4.}
+设 $T_n$ 是算法 37.1 或式（36.5）定义的 $n\times n$ Jacobi 矩阵，
+其条目 $\beta_1,\ldots,\beta_{n-1}$ 由式（37.6）给出。设
+
+\[
+T_n=VDV^T
+\]
+
+是 $T_n$ 的正交对角化，其中
+$V=[v_1|\cdots|v_n]$，$D=\operatorname{diag}(\lambda_1,\ldots,\lambda_n)$。
+那么 Gauss--Legendre 求积公式的节点和权重为
+
+\begin{equation}
+x_j=\lambda_j,\qquad
+w_j=2(v_j)_1^2,\qquad j=1,\ldots,n.
+\tag{37.11}
+\end{equation}
+
+\section*{例}
+
+为了说明 Gauss 求积对光滑函数积分的威力，考虑计算
+
+\[
+I(e^x)=\int_{-1}^{1}e^x\,dx=2.35040239.
+\]
+
+取 $n=4$，四点 Gauss--Legendre 求积的 Jacobi 矩阵为
+
+\[
+T_4=
+\begin{bmatrix}
+0 & 0.577350269 & 0 & 0\\
+0.577350269 & 0 & 0.516397779 & 0\\
+0 & 0.516397779 & 0 & 0.507092553\\
+0 & 0 & 0.507092553 & 0
+\end{bmatrix}.
+\]
+
+该矩阵的特征值给出节点
+
+\[
+x_1=-x_4=0.861136312,\qquad
+x_2=-x_3=0.339981044,
+\]
+
+而特征向量的第一分量给出相应权重
+
+\[
+w_1=w_4=0.347854845,\qquad
+w_2=w_3=0.652145155.
+\]
+
+把这些数代入式（37.10），得到
+
+\[
+I_4(e^x)=2.35040209,
+\]
+
+与精确结果约有 7 位数字一致。相比之下，四点 Newton--Cotes 公式给出
+$I_4(e^x)\approx2.3556$，只有约 3 位数字准确。
+
+\section*{习题}
+
+\paragraph{37.1.}
+Legendre 多项式的标准递推关系为
+
+\begin{equation}
+P_n(x)=\frac{2n-1}{n}xP_{n-1}(x)
+-\frac{n-1}{n}P_{n-2}(x),
+\tag{37.12}
+\end{equation}
+
+初值为 $P_0(x)=1$、$P_1(x)=x$。
+
+\begin{enumerate}[label=(\alph*)]
+\item 验证式（37.12）给出式（7.11）中的多项式 $P_2(x)$ 和 $P_3(x)$。
+\item 由于 $\{P_n(x)\}$ 与 $\{q_{n+1}(x)\}$ 的归一化方式不同，式（37.12）
+不是系数为（37.6）的递推式（37.5）。写出分别对应于这两个递推式的两个
+三对角矩阵，并推导它们之间的关系。
+\item 利用（b）的结果，确定 $q_{n+1}(1)$ 的公式，或等价地，确定
+$\lVert P_n\rVert$ 的公式。
+\end{enumerate}
+
+\paragraph{37.2.}
+根据正交性的定义，证明 $q_{n+1}(x)$ 有 $n$ 个互异零点，且全部位于
+开区间 $(-1,1)$ 内。（零点互异这一事实也可由习题 25.1 得到，但这里
+要求使用直接论证。）
+
+\paragraph{37.3.}
+在 $n$ 个互异数据点 $\{x_j\}$ 上用次数不超过 $n-1$ 的多项式插值
+$n$ 个数据值 $\{y_j\}$ 的问题，在式（11.4）中写成了一个方形
+Vandermonde 线性方程组。
+
+\begin{enumerate}[label=(\alph*)]
+\item 通过论证插值问题至多有一个解，证明这个 Vandermonde 矩阵非奇异。
+\item 写出定理 37.2 中隐含的对应方程组，并利用（a）的结果证明该定理。
+\end{enumerate}
+
+\paragraph{37.4.}
+\begin{enumerate}[label=(\alph*)]
+\item 写一个六行的 MATLAB 程序，计算 $n$ 点 Gauss--Legendre 求积公式的
+节点和权重，并使用这些数计算函数 $f$ 的近似积分。
+\item 取 $f(x)=e^x$、$n=4$，验证正文中的例子。然后在对数坐标下绘制
+$n=1,2,\ldots,40$ 时的
+\[
+\lvert I(e^x)-I_n(e^x)\rvert
+\]
+并评论结果。
+\item 对 $f(x)=e^{|x|}$ 作类似图像并评论。
+\end{enumerate}
+
+\paragraph{37.5.}
+习题 37.4 的程序计算 Legendre 多项式的零点，也称为 $[-1,1]$ 中的
+Legendre 点。Chebyshev 多项式的零点，即 Chebyshev 点，由式（36.9）的
+显式公式给出。进行一系列计算，尽可能优雅地生成数值和图像，说明当
+$n\to\infty$ 时，Legendre 点和 Chebyshev 点都趋于极限密度分布
+
+\[
+\mu(x)=\pi^{-1}(1-x^2)^{-1/2}
+\]
+
+（使用习题 36.2 的记号）。进一步绘制图像并给出数值，探索不同 $n$ 下
+Legendre 点与 Chebyshev 点究竟有多接近。
+
+\end{document}

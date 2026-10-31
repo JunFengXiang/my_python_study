@@ -1,0 +1,508 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\title{数值线性代数\quad 第 24 讲：特征值问题}
+\author{Lloyd N. Trefethen、David Bau III\quad 中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+\pagestyle{plain}
+
+特征值问题在科学计算中尤其有趣，因为寻找特征值的最佳算法虽然
+功能强大，却往往非常不直观。本讲回顾特征值与特征向量的数学；
+算法将在后面的讲次中讨论。
+
+\section*{特征值与特征向量}
+
+设 $A\in\mathbb{C}^{m\times m}$ 是方阵。若非零向量
+$x\in\mathbb{C}^m$ 满足
+\begin{equation}
+Ax=\lambda x,
+\tag{24.1}
+\end{equation}
+则称 $x$ 是 $A$ 的特征向量，$\lambda\in\mathbb{C}$ 是与之对应的
+特征值。
+
+这里的想法是，矩阵 $A$ 作用在 $\mathbb{C}^m$ 的某个子空间 $S$
+上时，有时会表现得像标量乘法。发生这种情况时，这个特殊子空间
+称为特征子空间，其中任意非零 $x\in S$ 都是特征向量。
+
+矩阵 $A$ 的全部特征值组成 $A$ 的谱，记作
+\[
+\Lambda(A)\subset\mathbb{C}.
+\]
+
+特征值问题与前面几讲讨论的方程组问题有很不一样的性质。对方程组
+而言，$A$ 的定义域可以是一个空间，值域可以是另一个空间。例如在
+例 1.1 中，$A$ 把多项式系数的 $n$-向量映射为采样多项式值的
+$m$-向量；询问这种 $A$ 的特征值没有意义。特征值问题只有在定义域
+和值域相同的时候才有意义。这反映了应用中的一个事实：特征值通常用于
+研究矩阵的迭代复合，或者研究 $A^k$ 这样的显式幂，或者研究
+$e^{tA}$ 这样的函数形式。
+
+概括地说，特征值和特征向量有两方面用途，一方面是算法上的，
+另一方面是物理上的。从算法角度，特征值分析可以把某些耦合问题
+化简为一组标量问题。从物理角度，特征值分析能够帮助我们理解
+线性方程控制的演化系统的行为。最熟悉的例子包括共振（例如乐器
+受到敲击、拨动或拉奏时的响应）和稳定性（例如流体受到微小扰动时
+的行为）。在这些问题中，特征值对于分析大时间 $t$ 的行为尤其有用；
+见习题 24.3。
+
+\section*{特征值分解}
+
+方阵 $A$ 的特征值分解（已经在 (5.1) 中提到）是如下因式分解：
+\begin{equation}
+A=X\Lambda X^{-1},
+\tag{24.2}
+\end{equation}
+其中 $X$ 非奇异，$\Lambda$ 为对角矩阵。（如下文所述，这种分解
+并不总是存在。）
+
+这个定义可以改写为
+\begin{equation}
+AX=X\Lambda.
+\tag{24.3}
+\end{equation}
+也就是
+\[
+A
+\begin{bmatrix}x_1&x_2&\cdots&x_m\end{bmatrix}
+=
+\begin{bmatrix}x_1&x_2&\cdots&x_m\end{bmatrix}
+\begin{bmatrix}
+\lambda_1&&&\\
+&\lambda_2&&\\
+&&\ddots&\\
+&&&\lambda_m
+\end{bmatrix}.
+\]
+因此，如果 $x_j$ 是 $X$ 的第 $j$ 列、$\lambda_j$ 是 $\Lambda$ 的
+第 $j$ 个对角条目，就有 $Ax_j=\lambda_jx_j$。换句话说，
+$X$ 的第 $j$ 列是 $A$ 的特征向量，而 $\Lambda$ 的第 $j$ 个条目
+是相应的特征值。
+
+特征值分解把基变换为“特征向量坐标”。如果 $Ax=b$ 且
+$A=X\Lambda X^{-1}$，则
+\begin{equation}
+X^{-1}b=\Lambda(X^{-1}x).
+\tag{24.4}
+\end{equation}
+因此，为了计算 $Ax$，可以先在 $X$ 的列向量构成的基下展开 $x$，
+再作用以 $\Lambda$，最后把结果理解为 $X$ 的列向量线性组合的系数。
+
+\section*{几何重数}
+
+对应于同一个特征值的全部特征向量，加上零向量后构成一个子空间，
+称为特征子空间。若 $\lambda$ 是 $A$ 的特征值，记相应的特征子空间为
+$E_\lambda$。特征子空间是 $A$ 的一个不变子空间，即
+\[
+AE_\lambda\subseteq E_\lambda.
+\]
+
+$E_\lambda$ 的维数可以理解为：对应于同一个特征值 $\lambda$ 的
+线性无关特征向量的最大数量。这个数量称为 $\lambda$ 的几何重数。
+几何重数也可以描述为
+\[
+\dim\mathcal{N}(A-\lambda I),
+\]
+因为这个零空间正是 $E_\lambda$。
+
+\section*{特征多项式}
+
+$A\in\mathbb{C}^{m\times m}$ 的特征多项式，记作 $p_A$，或简写为
+$p$，是由下式定义的 $m$ 次多项式：
+\begin{equation}
+p_A(z)=\det(zI-A).
+\tag{24.5}
+\end{equation}
+由于放置了负号，$p$ 是首一多项式，即 $m$ 次项的系数为 1。
+
+\paragraph{定理 24.1.}
+$\lambda$ 是 $A$ 的特征值，当且仅当 $p_A(\lambda)=0$。
+
+\paragraph{证明.}
+由特征值的定义，
+\[
+\begin{aligned}
+\lambda\text{ 是 }A\text{ 的特征值}
+&\Longleftrightarrow
+\text{存在非零 }x\text{ 使 }\lambda x-Ax=0\\
+&\Longleftrightarrow \lambda I-A\text{ 奇异}\\
+&\Longleftrightarrow \det(\lambda I-A)=0.
+\end{aligned}
+\]
+\hfill$\square$
+
+定理 24.1 有一个重要推论：即使矩阵 $A$ 是实矩阵，它的某些特征值
+也可能是复数。从物理上说，这与实动力系统既可能振荡，也可能增长
+或衰减的现象有关。从算法上说，即使特征值问题的输入是实数，
+输出也可能必须使用复数。
+
+\section*{代数重数}
+
+根据代数基本定理，可以把 $p_A$ 写成
+\begin{equation}
+p_A(z)=(z-\lambda_1)(z-\lambda_2)\cdots(z-\lambda_m)
+\tag{24.6}
+\end{equation}
+的形式，其中 $\lambda_j\in\mathbb{C}$。由定理 24.1，每个
+$\lambda_j$ 都是 $A$ 的特征值，$A$ 的所有特征值都会出现在这个列表中。
+一般来说，一个特征值可能出现多次。特征值 $\lambda$ 的代数重数，
+定义为它作为 $p_A$ 的根的重数。代数重数为 1 的特征值称为单特征值。
+
+特征多项式给出了计算矩阵特征值数量的简单方法。
+
+\paragraph{定理 24.2.}
+若 $A\in\mathbb{C}^{m\times m}$，则 $A$ 有 $m$ 个特征值，
+按代数重数计。特别地，如果 $p_A$ 的根都是单根，那么 $A$ 有
+$m$ 个互不相同的特征值。
+
+特别注意，每个矩阵至少有一个特征值。一个特征值的代数重数总是不小于
+它的几何重数。为了证明这一点，需要先了解相似变换。
+
+\section*{相似变换}
+
+如果 $X\in\mathbb{C}^{m\times m}$ 非奇异，那么映射
+\[
+A\longmapsto X^{-1}AX
+\]
+称为 $A$ 的相似变换。如果存在非奇异的
+$X\in\mathbb{C}^{m\times m}$ 使
+\[
+B=X^{-1}AX,
+\]
+就称矩阵 $A$ 和 $B$ 相似。正如特征值分解中的特殊情形所说明的，
+相似变换就是一种换基操作。
+
+许多性质会被相似矩阵 $A$ 和 $X^{-1}AX$ 共同保持。
+
+\paragraph{定理 24.3.}
+若 $X$ 非奇异，则 $A$ 和 $X^{-1}AX$ 具有相同的特征多项式、
+特征值、代数重数和几何重数。
+
+\paragraph{证明.}
+特征多项式相同是直接计算的结果：
+\[
+\begin{aligned}
+p_{X^{-1}AX}(z)
+&=\det(zI-X^{-1}AX)\\
+&=\det\bigl(X^{-1}(zI-A)X\bigr)\\
+&=\det(X^{-1})\det(zI-A)\det(X)\\
+&=\det(zI-A)=p_A(z).
+\end{aligned}
+\]
+特征多项式相同，立即得到特征值和代数重数相同。最后，若
+$E_\lambda$ 是 $A$ 的特征子空间，则可以验证
+$X^{-1}E_\lambda$ 是 $X^{-1}AX$ 的特征子空间，反之亦然，
+所以几何重数也相同。\hfill$\square$
+
+现在可以把几何重数和代数重数联系起来。
+
+\paragraph{定理 24.4.}
+特征值的代数重数至少与它的几何重数一样大。
+
+\paragraph{证明.}
+设 $\lambda$ 对矩阵 $A$ 的几何重数为 $n$。令 $\widehat V$ 为
+$m\times n$ 矩阵，其列构成特征子空间
+\[
+\{x:Ax=\lambda x\}
+\]
+的一组标准正交基。把 $\widehat V$ 扩充为一个方阵酉矩阵 $V$，
+则
+\[
+B=V^*AV=
+\begin{bmatrix}
+\lambda I&C\\
+0&D
+\end{bmatrix},
+\tag{24.7}
+\]
+其中 $I$ 是 $n\times n$ 单位矩阵，$C$ 是 $n\times(m-n)$ 矩阵，
+$D$ 是 $(m-n)\times(m-n)$ 矩阵。由行列式的定义，
+\[
+\det(zI-B)=\det(zI-\lambda I)\det(zI-D)
+=(z-\lambda)^n\det(zI-D).
+\]
+因此，$\lambda$ 作为 $B$ 的特征值，其代数重数至少为 $n$。
+相似变换保持重数，所以对 $A$ 也成立。\hfill$\square$
+
+\section*{缺陷特征值与缺陷矩阵}
+
+虽然一般矩阵的代数重数和几何重数通常相等（也就是都为 1），
+但这绝不是对所有矩阵都成立。
+
+\paragraph{例 24.1.}
+考虑两个矩阵
+\[
+A=
+\begin{bmatrix}
+2&0&0\\
+0&2&0\\
+0&0&2
+\end{bmatrix},
+\qquad
+B=
+\begin{bmatrix}
+2&1&0\\
+0&2&1\\
+0&0&2
+\end{bmatrix}.
+\]
+$A$ 和 $B$ 的特征多项式都是 $(z-2)^3$，因此二者都只有一个特征值
+$\lambda=2$，代数重数为 3。对 $A$，可以选取三个线性无关的
+特征向量，例如 $e_1,e_2,e_3$，所以几何重数也是 3。对 $B$，
+却只能找到一个线性无关的特征向量（$e_1$ 的数乘），因此几何重数
+只有 1。
+
+代数重数大于几何重数的特征值称为缺陷特征值；含有一个或多个
+缺陷特征值的矩阵称为缺陷矩阵。
+
+任意对角矩阵都是非缺陷的。对这样的矩阵，一个特征值的代数重数
+和几何重数都等于它在对角线上出现的次数。
+
+\section*{可对角化性}
+
+非缺陷矩阵恰好就是存在特征值分解 (24.2) 的矩阵类。
+
+\paragraph{定理 24.5.}
+$m\times m$ 矩阵 $A$ 非缺陷，当且仅当它有特征值分解
+\[
+A=X\Lambda X^{-1}.
+\]
+
+\paragraph{证明.}
+若 $A=X\Lambda X^{-1}$，由定理 24.3，$\Lambda$ 与 $A$ 相似，
+所以二者有相同的特征值和重数。由于 $\Lambda$ 是对角矩阵，
+它是非缺陷的，从而 $A$ 也是非缺陷的。
+
+反过来，非缺陷矩阵必须有 $m$ 个线性无关的特征向量：不同特征值
+对应的特征向量必然线性无关，并且每个特征值能够贡献与其代数重数
+一样多的线性无关特征向量。把这 $m$ 个特征向量作为矩阵 $X$ 的列，
+$X$ 就是非奇异的，而且
+\[
+A=X\Lambda X^{-1}.
+\]
+\hfill$\square$
+
+鉴于这个结论，非缺陷矩阵的另一个名称是可对角化矩阵。
+一个可对角化矩阵 $A$ 是否在某种意义上“表现得像”它的对角等价矩阵
+$\Lambda$？答案取决于所衡量的行为，以及特征向量矩阵 $X$ 的条件数。
+如果 $X$ 高度病态，那么从 $A$ 转换为 $\Lambda$ 时可能丢失大量信息。
+见第 34 讲的“谨慎提示：非正规性”。
+
+\section*{行列式与迹}
+
+$A\in\mathbb{C}^{m\times m}$ 的迹是它的对角线元素之和：
+\[
+\operatorname{tr}(A)=\sum_{j=1}^m a_{jj}.
+\]
+迹和行列式都与特征值有简单关系。
+
+\paragraph{定理 24.6.}
+矩阵 $A$ 的行列式 $\det(A)$ 和迹 $\operatorname{tr}(A)$，
+分别等于 $A$ 的特征值之积和之和，特征值按代数重数计：
+\begin{equation}
+\det(A)=\prod_{j=1}^{m}\lambda_j,
+\qquad
+\operatorname{tr}(A)=\sum_{j=1}^{m}\lambda_j.
+\tag{24.8}
+\end{equation}
+
+\paragraph{证明.}
+由 (24.5) 和 (24.6)，
+\[
+\det(A)=(-1)^m\det(-A)=(-1)^mp_A(0)=\prod_{j=1}^{m}\lambda_j.
+\]
+这证明了第一个公式。对于第二个公式，由 (24.5)，$p_A$ 的
+$z^{m-1}$ 项系数是 $A$ 的对角线元素之和的负值，即
+$-\operatorname{tr}(A)$；另一方面，由 (24.6)，这个系数也是
+$-\sum_{j=1}^{m}\lambda_j$。因此
+$\operatorname{tr}(A)=\sum_{j=1}^{m}\lambda_j$。\hfill$\square$
+
+\section*{酉对角化}
+
+有时，$m\times m$ 矩阵 $A$ 不仅有 $m$ 个线性无关的特征向量，
+而且这些特征向量可以选成相互正交的。在这种情况下，称 $A$ 是
+酉可对角化的，即存在酉矩阵 $Q$ 使
+\begin{equation}
+A=Q\Lambda Q^*.
+\tag{24.9}
+\end{equation}
+这个分解既是特征值分解，也是奇异值分解；区别只在于 $\Lambda$
+的对角条目可能带有复数符号。
+
+Hermitian 矩阵就是一类已经见过的酉可对角化矩阵。下面的结论是
+定理 24.9 的推论。
+
+\paragraph{定理 24.7.}
+Hermitian 矩阵是酉可对角化的，而且它的特征值都是实数。
+
+酉可对角化的矩阵不只有 Hermitian 矩阵。其他例子包括
+反 Hermitian 矩阵、酉矩阵、循环矩阵，以及这些矩阵加上单位矩阵的
+数倍。一般地，酉可对角化矩阵有一个优美的刻画。若
+\[
+A^*A=AA^*,
+\]
+就称 $A$ 为正规矩阵。下面的结果是一个著名定理。
+
+\paragraph{定理 24.8.}
+矩阵酉可对角化，当且仅当它是正规矩阵。
+
+\section*{Schur 分解}
+
+还有一种矩阵分解在数值分析中实际上最有用，因为包括缺陷矩阵在内的
+所有矩阵都可以进行这种分解。矩阵 $A$ 的 Schur 分解是
+\begin{equation}
+A=QTQ^*,
+\tag{24.10}
+\end{equation}
+其中 $Q$ 是酉矩阵，$T$ 是上三角矩阵。注意，由于 $A$ 和 $T$
+相似，$A$ 的特征值必然出现在 $T$ 的对角线上。
+
+\paragraph{定理 24.9.}
+每个方阵 $A$ 都有 Schur 分解。
+
+\paragraph{证明.}
+对 $A$ 的维数 $m$ 使用归纳法。当 $m=1$ 时结论显然成立；
+设 $m\ge2$。取 $A$ 的任意一个特征向量 $x$，对应特征值为 $\lambda$。
+将 $x$ 归一化，并令它成为酉矩阵 $U$ 的第一列。正如 (24.7)，
+容易验证
+\[
+U^*AU=
+\begin{bmatrix}
+\lambda&B\\
+0&C
+\end{bmatrix}.
+\]
+根据归纳假设，存在矩阵 $V$ 和上三角矩阵 $T$ 使
+$C=VTV^*$。令
+\[
+Q=U
+\begin{bmatrix}
+1&0\\
+0&V
+\end{bmatrix}.
+\]
+这是一个酉矩阵，并且
+\[
+Q^*AQ=
+\begin{bmatrix}
+\lambda&BV\\
+0&T
+\end{bmatrix}.
+\]
+这就是所需的 Schur 分解。\hfill$\square$
+
+\section*{揭示特征值的分解}
+
+前面介绍了三种揭示特征值的分解，也就是把矩阵化为能够显式显示
+特征值的形式：
+
+\begin{itemize}[leftmargin=2.5em]
+    \item 对角化 $A=X\Lambda X^{-1}$ 当且仅当 $A$ 非缺陷；
+    \item 酉对角化 $A=Q\Lambda Q^*$ 当且仅当 $A$ 正规；
+    \item 酉三角化（Schur 分解）$A=QTQ^*$ 对所有矩阵都存在。
+\end{itemize}
+
+为了计算特征值，我们将构造上述某一种分解。一般而言会使用 Schur
+分解，因为它对所有矩阵都适用。此外，由于算法中使用了酉变换，
+所得算法通常具有数值稳定性。如果 $A$ 正规，那么 Schur 形式就是
+对角的；特别地，如果 $A$ 是 Hermitian 矩阵，我们可以在计算全过程
+中利用这种对称性，把 $A$ 化为对角形式，而且运算量至多是一般矩阵
+所需运算量的一半。
+
+\section*{习题}
+
+\begin{enumerate}[label=\textbf{24.\arabic*.},leftmargin=*]
+    \item 对下列每个命题，证明它为真，或者给出反例说明它为假。
+    除非另有说明，$A\in\mathbb{C}^{m\times m}$；本题用“ew”表示
+    eigenvalue（特征值），这个缩写来自德语 Eigenwert，特征向量
+    的对应缩写“ev”来自 Eigenvektor。
+    \begin{enumerate}[label=(\alph*),leftmargin=2em]
+        \item 如果 $\lambda$ 是 $A$ 的特征值且 $\mu\in\mathbb{C}$，
+        那么 $\lambda-\mu$ 是 $A-\mu I$ 的特征值。
+        \item 如果 $A$ 是实矩阵且 $\lambda$ 是 $A$ 的特征值，
+        那么 $-\lambda$ 也是 $A$ 的特征值。
+        \item 如果 $A$ 是实矩阵且 $\lambda$ 是 $A$ 的特征值，
+        那么 $\overline{\lambda}$ 也是 $A$ 的特征值。
+        \item 如果 $\lambda$ 是 $A$ 的特征值且 $A$ 非奇异，
+        那么 $\lambda^{-1}$ 是 $A^{-1}$ 的特征值。
+        \item 如果 $A$ 的所有特征值都是 0，那么 $A=0$。
+        \item 如果 $A$ 是 Hermitian 矩阵且 $\lambda$ 是 $A$ 的特征值，
+        那么 $|\lambda|$ 是 $A$ 的一个奇异值。
+        \item 如果 $A$ 可对角化且它的所有特征值都相同，那么 $A$ 是对角矩阵。
+    \end{enumerate}
+
+    \item 下面是对任意 $m\times m$ 矩阵 $A$（不论对称与否）成立的
+    Gerschgorin 定理：$A$ 的每个特征值至少落在复平面上的 $m$ 个
+    圆盘中的一个内，其中第 $i$ 个圆盘的圆心为 $a_{ii}$，半径为
+    $\sum_{j\ne i}|a_{ij}|$。此外，如果其中 $n$ 个圆盘构成一个
+    与其余 $m-n$ 个圆盘不相交的连通区域，那么该区域内恰好有 $n$
+    个 $A$ 的特征值。
+    \begin{enumerate}[label=(\alph*),leftmargin=2em]
+        \item 证明 Gerschgorin 定理的第一部分。（提示：设 $\lambda$
+        是 $A$ 的任意特征值，$x$ 是对应特征向量，并把 $x$ 的最大条目
+        归一化为 1。）
+        \item 证明第二部分。（提示：把 $A$ 连续变形为对角矩阵，
+        并利用矩阵特征值是其条目的连续函数这一事实。）
+        \item 对下列矩阵的特征值，利用 Gerschgorin 定理给出估计：
+        \[
+        A=
+        \begin{bmatrix}
+        8&1&0\\
+        1&4&\varepsilon\\
+        0&\varepsilon&1
+        \end{bmatrix},
+        \qquad |\varepsilon|<1.
+        \]
+        \item 设法证明 $A$ 的最小特征值 $\lambda_3$ 满足更紧的界
+        \[
+        |\lambda_3-1|\le\varepsilon^2.
+        \]
+        （提示：考虑对角相似变换。）
+    \end{enumerate}
+
+    \item 设 $A$ 是一个 $10\times10$ 随机矩阵，其条目服从标准正态分布，
+    再减去两倍单位矩阵。编写程序，在对数坐标下绘制
+    $0\le t\le20$ 时的 $\|e^{tA}\|_2$，并将结果与直线
+    $e^{t\alpha(A)}$ 比较，其中
+    \[
+    \alpha(A)=\max_j\operatorname{Re}(\lambda_j)
+    \]
+    是 $A$ 的谱 abscissa。对十个随机矩阵 $A$ 运行程序并评论结果。
+    什么性质会使矩阵的 $\|e^{tA}\|_2$ 曲线在 $t\to\infty$ 时仍然振荡？
+
+    \item 对任意 $A\in\mathbb{C}^{m\times m}$ 和任意范数，利用定理 24.9
+    证明：
+    \begin{enumerate}[label=(\alph*),leftmargin=2em]
+        \item
+        \[
+        \lim_{n\to\infty}\|A^n\|=0
+        \quad\Longleftrightarrow\quad
+        \rho(A)<1,
+        \]
+        其中 $\rho$ 是谱半径（见习题 3.2）。
+        \item
+        \[
+        \lim_{t\to\infty}\|e^{tA}\|=0
+        \quad\Longleftrightarrow\quad
+        \alpha(A)<0,
+        \]
+        其中 $\alpha$ 是谱 abscissa。
+    \end{enumerate}
+\end{enumerate}
+
+\end{document}
