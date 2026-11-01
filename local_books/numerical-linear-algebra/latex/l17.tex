@@ -1,0 +1,348 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\epsmach}{\varepsilon_{\mathrm{machine}}}
+\newcommand{\fl}{\operatorname{fl}}
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}
+\renewcommand{\thetheorem}{17.\arabic{theorem}}
+
+\title{数值线性代数\quad 第 17 讲：回代法的稳定性}
+\author{Lloyd N. Trefethen、David Bau III\quad 中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+\pagestyle{plain}
+
+数值线性代数中最容易的问题之一，是求解三角形方程组.标准算法是逐次代入；当系统为上三角系统时，称为回代.本讲将完整说明这一算法是后向稳定的，并定量界定舍入误差的影响，而不只写成 ``$O(\epsmach)$''.
+
+\section*{三角系统}
+
+我们已经看到，一般方程组 $Ax=b$ 可以通过 QR 分解化为上三角系统 $Rx=y$.下三角和上三角系统还会出现在高斯消去、Cholesky 分解以及数值线性代数的许多其他计算中.这些系统可以通过逐次代入轻松求解：下三角系统使用前代，上三角系统使用回代.虽然这两种情形在数学上完全相同，但为明确起见，本讲只讨论回代.
+
+设我们希望求解 $Rx=b$，即
+\begin{equation}
+\begin{bmatrix}
+r_{11}&r_{12}&\cdots&r_{1m}\\
+&r_{22}&\cdots&r_{2m}\\
+&&\ddots&\vdots\\
+&&&r_{mm}
+\end{bmatrix}
+\begin{bmatrix}x_1\\x_2\\\vdots\\x_m\end{bmatrix}
+=\begin{bmatrix}b_1\\b_2\\\vdots\\b_m\end{bmatrix}.
+\tag{17.1}
+\end{equation}
+其中 $b\in\C^m$，$R\in\C^{m\times m}$ 是非奇异上三角矩阵，未知量 $x\in\C^m$.我们可以逐个求出 $x$ 的分量，从 $x_m$ 开始，最后得到 $x_1$.为方便起见，下面把算法写成公式序列，而不是循环.
+
+\begin{center}
+\fbox{\begin{minipage}{0.92\linewidth}
+\textbf{算法 17.1\quad 回代}
+
+\[
+\begin{aligned}
+x_m&=b_m/r_{mm},\\
+x_{m-1}&=(b_{m-1}-x_mr_{m-1,m})/r_{m-1,m-1},\\
+x_{m-2}&=(b_{m-2}-x_{m-1}r_{m-2,m-1}-x_mr_{m-2,m})/r_{m-2,m-2},\\
+&\ \vdots\\
+x_j&=\left(b_j-\sum_{k=j+1}^{m}x_kr_{jk}\right)/r_{jj}.
+\end{aligned}
+\]
+\end{minipage}}
+\end{center}
+
+这个结构是三角形的，每个位置都进行一次减法和一次乘法.因此，运算量等于一个 $m\times m$ 三角形面积的两倍：
+\begin{equation}
+\text{回代的运算量}\;\sim m^2\ \text{flops}.
+\tag{17.2}
+\end{equation}
+
+\section*{后向稳定性定理}
+
+上一讲中，回代是用 QR 分解求解 $Ax=b$ 的三个步骤之一.在式 (16.3)--(16.5) 中，我们断言这三个步骤都后向稳定，但没有证明.本讲将填补其中一个缺口，推导一个能推出式 (16.5) 的界.这一论证也展示了后向稳定性证明通常如何组织；本书只有这一处会把这类证明的全部细节都写出来.
+
+不过，在证明算法 17.1 后向稳定之前，必须明确公式中尚未规定的一个细节.我们任意约定：上面的括号表达式中，减法从左到右进行.其他顺序同样稳定，只是估计的细节不同.现在可以陈述定理.
+
+\begin{theorem}
+将算法 17.1 应用于问题 (17.1)，其中数据是满足公理 (13.7) 的计算机上的浮点数.则该算法后向稳定，即计算得到的解 $\widetilde x\in\C^m$ 满足
+\begin{equation}
+    (R+\delta R)\widetilde x=b
+    \tag{17.3}
+\end{equation}
+其中 $\delta R\in\C^{m\times m}$ 为上三角矩阵，并且
+\begin{equation}
+    \frac{\|\delta R\|}{\|R\|}=O(\epsmach).
+    \tag{17.4}
+\end{equation}
+更具体地，对每个 $i,j$，有
+\begin{equation}
+    \left|\frac{\delta r_{ij}}{r_{ij}}\right|
+    \le m\epsmach+O(\epsmach^2).
+    \tag{17.5}
+\end{equation}
+\end{theorem}
+
+在式 (17.5) 以及本讲全文中，我们沿用式 (14.12) 的约定：如果分母为零，则隐含断言分子也为零（对所有充分小的 $\epsmach$ 都成立）.为使思想清晰而又不失趣味，下面用较舒缓的节奏给出证明.
+
+\subsection*{$m=1$}
+
+根据式 (17.3)，我们的任务是把每一个浮点误差表达为输入的扰动.先考虑最简单的情形：$R$ 是 $1\times1$ 矩阵.此时回代只有一步，且记 $\oplus,\otimes,\ominus,\oslash$ 为浮点运算：
+\[
+\widetilde x_1=b_1\oslash r_{11}.
+\]
+由公理 (13.7)，计算得到的解满足
+\[
+\widetilde x_1=\frac{b_1}{r_{11}}(1+\epsilon_1),
+\qquad |\epsilon_1|\le\epsmach.
+\]
+但是，我们希望把误差表示为 $R$ 的扰动.令
+\[
+\epsilon'_1=-\frac{\epsilon_1}{1+\epsilon_1},
+\]
+则
+\begin{equation}
+    \widetilde x_1=\frac{b_1}{r_{11}(1+\epsilon'_1)},
+    \qquad |\epsilon'_1|\le\epsmach+O(\epsmach^2).
+    \tag{17.6}
+\end{equation}
+注意，$\epsilon'_1$ 等于 $-\epsilon_1$ 加上一个二阶项.我们可以自由地把分子中的小相对扰动移到分母，或反过来移动；结果只会改变 $O(\epsmach^2)$ 的项（习题 14.2(b)）.
+
+式 (17.6) 中的等号是精确等号，除法是数学除法而非浮点除法.它说明 $1\times1$ 的回代是后向稳定的：$\widetilde x_1$ 正好是扰动问题的精确解，即
+\[
+(r_{11}+\delta r_{11})\widetilde x_1=b_1,
+\qquad \delta r_{11}=\epsilon'_1r_{11},
+\]
+因而
+\[
+\left|\frac{\delta r_{11}}{r_{11}}\right|
+\le\epsmach+O(\epsmach^2).
+\]
+
+\subsection*{$m=2$}
+
+$2\times2$ 的情形稍微不那么简单.设 $R\in\C^{2\times2}$ 是上三角矩阵，$b\in\C^2$.计算 $\widetilde x\in\C^2$ 分两步进行.第一步与 $1\times1$ 情形相同：
+\begin{equation}
+    \widetilde x_2=b_2\oslash r_{22}
+    =\frac{b_2}{r_{22}(1+\epsilon'_1)},
+    \qquad |\epsilon'_1|\le\epsmach+O(\epsmach^2).
+    \tag{17.7}
+\end{equation}
+第二步为
+\[
+\widetilde x_1=(b_1\ominus(\widetilde x_2\otimes r_{12}))\oslash r_{11}.
+\]
+要证明后向稳定性，必须把这三个浮点运算中的误差表达为条目 $r_{ij}$ 的扰动.
+
+乘法很简单，直接使用公理 (13.7)，把浮点乘法解释为 $r_{12}$ 的扰动：
+\[
+\widetilde x_1=(b_1\ominus\widetilde x_2r_{12}(1+\epsilon_2))\oslash r_{11},
+\qquad |\epsilon_2|\le\epsmach.
+\]
+除法和减法更微妙.先按公理 (13.7) 用精确数学运算写出公式：
+\begin{align}
+\widetilde x_1
+&=(b_1-\widetilde x_2r_{12}(1+\epsilon_2))(1+\epsilon_3)\oslash r_{11}
+\tag{17.8}\\
+&=\frac{(b_1-\widetilde x_2r_{12}(1+\epsilon_2))(1+\epsilon_3)}{r_{11}(1+\epsilon_4)}.
+\tag{17.9}
+\end{align}
+这里 $|\epsilon_3|,|\epsilon_4|\le\epsmach$.像前面一样，把 $\epsilon_3,\epsilon_4$ 从分子移到分母，得到
+\[
+\widetilde x_1
+=\frac{b_1-\widetilde x_2r_{12}(1+\epsilon_2)}{r_{11}(1+\epsilon'_3)(1+\epsilon'_4)},
+\]
+其中 $|\epsilon'_3|,|\epsilon'_4|\le\epsmach+O(\epsmach^2)$.等价地，
+\begin{equation}
+    \widetilde x_1
+    =\frac{b_1-\widetilde x_2r_{12}(1+\epsilon_2)}{r_{11}(1+2\epsilon_5)},
+    \qquad |\epsilon_5|\le\epsmach+O(\epsmach^2).
+    \tag{17.10}
+\end{equation}
+这个公式说明：如果 $r_{22},r_{12},r_{11}$ 分别被因子 $(1+\epsilon'_1)$、$(1+\epsilon_2)$、$(1+2\epsilon_5)$ 扰动，那么 $\widetilde x$ 就是精确解.这些扰动可以总结为
+\[
+(R+\delta R)\widetilde x=b,
+\]
+其中 $\delta R$ 的条目满足（不等式按逐项理解）
+\[
+\begin{bmatrix}
+|\delta r_{11}|/|r_{11}|&|\delta r_{12}|/|r_{12}|\\
+&|\delta r_{22}|/|r_{22}|
+\end{bmatrix}
+=\begin{bmatrix}2|\epsilon_5|&|\epsilon_2|\\&|\epsilon'_1|\end{bmatrix}
+\le
+\begin{bmatrix}2&1\\&1\end{bmatrix}\epsmach+O(\epsmach^2).
+\]
+这就保证了在任意矩阵范数下 $\|\delta R\|/\|R\|=O(\epsmach)$，从而 $2\times2$ 回代是后向稳定的.
+
+\subsection*{$m=3$}
+
+$3\times3$ 的分析包含一般情形所需的全部推理.前两步与上面相同：
+\begin{align}
+\widetilde x_3
+&=b_3\oslash r_{33}=\frac{b_3}{r_{33}(1+\epsilon'_1)},
+\tag{17.11}\\
+\widetilde x_2
+&=(b_2\ominus(\widetilde x_3\otimes r_{23}))\oslash r_{22}
+=\frac{b_2-\widetilde x_3r_{23}(1+\epsilon_2)}{r_{22}(1+2\epsilon'_3)}.
+\tag{17.12}
+\end{align}
+其中
+\[
+\begin{bmatrix}2|\epsilon'_3|&|\epsilon_2|\\&|\epsilon'_1|\end{bmatrix}
+\le
+\begin{bmatrix}2&1\\&1\end{bmatrix}\epsmach+O(\epsmach^2).
+\]
+第三步计算
+\begin{equation}
+\widetilde x_1=[(b_1\ominus(\widetilde x_2\otimes r_{12}))
+\ominus(\widetilde x_3\otimes r_{13})]\oslash r_{11}.
+\tag{17.13}
+\end{equation}
+我们通过引入扰动 $\epsilon_4,\epsilon_5$，把式 (17.13) 中的两个乘法转化为数学乘法：
+\[
+\widetilde x_1=[(b_1\ominus\widetilde x_2r_{12}(1+\epsilon_4))
+\ominus\widetilde x_3r_{13}(1+\epsilon_5)]\oslash r_{11}.
+\]
+再用 $\epsilon_6,\epsilon_7$ 把减法转化为数学减法：
+\[
+\widetilde x_1=
+\bigl[(b_1-\widetilde x_2r_{12}(1+\epsilon_4))(1+\epsilon_6)
+-\widetilde x_3r_{13}(1+\epsilon_5)\bigr](1+\epsilon_7)\oslash r_{11}.
+\]
+最后用 $\epsilon'_8$ 消去除法，其中 $|\epsilon'_8|\le\epsmach+O(\epsmach^2)$，并把结果放入分母：
+\[
+\widetilde x_1=
+\frac{\bigl[(b_1-\widetilde x_2r_{12}(1+\epsilon_4))(1+\epsilon_6)
+-\widetilde x_3r_{13}(1+\epsilon_5)\bigr](1+\epsilon_7)}
+{r_{11}(1+\epsilon'_8)}.
+\]
+上式已经包含我们需要的所有内容，除了 $\epsilon_6,\epsilon_7$ 来自减法，它们若直接展开会影响 $b_1$，而我们的目标只允许扰动条目 $r_{ij}$.含 $\epsilon_7$ 的项容易处理：把它改写为 $\epsilon'_7$ 并像往常一样移入分母.含 $\epsilon_6$ 的项需要一个新技巧：也把它移入分母，但为了保持等式成立，同时在 $r_{13}$ 项中补上新因子 $(1+\epsilon'_6)$.于是
+\[
+\widetilde x_1=
+\frac{b_1-\widetilde x_2r_{12}(1+\epsilon_4)
+-\widetilde x_3r_{13}(1+\epsilon_5)(1+\epsilon'_6)}
+{r_{11}(1+\epsilon'_6)(1+\epsilon'_7)(1+\epsilon'_8)}.
+\]
+现在 $r_{13}$ 有两个至多为 $\epsmach$ 的扰动因子，而 $r_{11}$ 有三个.在这个公式中，计算的全部误差都已经表示为 $R$ 的条目扰动.
+
+结果可以总结为 $(R+\delta R)\widetilde x=b$，其中条目满足
+\[
+\begin{bmatrix}
+|\delta r_{11}|/|r_{11}|&|\delta r_{12}|/|r_{12}|&|\delta r_{13}|/|r_{13}|\\
+&|\delta r_{22}|/|r_{22}|&|\delta r_{23}|/|r_{23}|\\
+&&|\delta r_{33}|/|r_{33}|
+\end{bmatrix}
+\le
+\begin{bmatrix}3&1&2\\&2&1\\&&1\end{bmatrix}\epsmach+O(\epsmach^2).
+\]
+
+\subsection*{一般的 $m$}
+
+高维情形的分析类似.例如，对 $5\times5$ 矩阵可以得到逐项界
+\begin{equation}
+\frac{|\delta R|}{|R|}\le
+\begin{bmatrix}
+5&1&2&3&4\\
+&4&1&2&3\\
+&&3&1&2\\
+&&&2&1\\
+&&&&1
+\end{bmatrix}\epsmach+O(\epsmach^2).
+\tag{17.14}
+\end{equation}
+这个矩阵中的条目来自三个部分.乘法 $\widetilde x_kr_{jk}$ 在如下模式的位置引入 $\epsmach$ 级扰动：
+\begin{equation}
+\otimes:
+\begin{bmatrix}
+0&1&1&1&1\\
+&0&1&1&1\\
+&&0&1&1\\
+&&&0&1\\
+&&&&0
+\end{bmatrix}.
+\tag{17.15}
+\end{equation}
+除以 $r_{kk}$ 在如下模式的位置引入扰动：
+\begin{equation}
+\oslash:
+\begin{bmatrix}
+1&&&&\\
+&1&&&\\
+&&1&&\\
+&&&1&\\
+&&&&1
+\end{bmatrix}.
+\tag{17.16}
+\end{equation}
+最后，减法也发生在式 (17.15) 的模式中；由于约定从左到右计算，每次减法都会在对角线以及其右侧的每个位置引入扰动.累加后得到模式
+\begin{equation}
+\ominus:
+\begin{bmatrix}
+4&0&1&2&3\\
+&3&0&1&2\\
+&&2&0&1\\
+&&&1&0\\
+&&&&0
+\end{bmatrix}.
+\tag{17.17}
+\end{equation}
+将式 (17.15)、(17.16) 和 (17.17) 相加，就得到式 (17.14).定理 17.1 得证.
+
+\section*{备注}
+
+导出式 (17.14) 的分析，是所有浮点计算后向误差分析的典型例子.唯一的原始工具是浮点公理 (13.7)：它保证每个运算 $\oplus,\ominus,\otimes,\oslash$（有时还包括浮点平方根）引入一个小的相对误差.我们反复而谨慎地使用这一公理，把计算过程中的每个误差解释为初始数据中的误差.由于差异只达到 $O(\epsmach^2)$，$\epsmach$ 量级的扰动可以相加，也可以自由地在分子和分母之间移动.
+
+对同一个算法，可以导出不止一种误差界.在本例中，也可以同时扰动 $b_j$ 和 $r_{ij}$，这样就不必使用式 (17.17) 所代表的技巧.另一方面，最终只扰动 $R$ 的结果看起来更简洁.
+
+式 (17.5) 是一个逐项后向误差界：每个条目 $r_{ij}$ 都按照相对于自身的大小发生小扰动，而不只是相对于 $R$ 的范数发生扰动.例如，如果 $r_{ij}=0$，这个条目完全不发生扰动；$\delta R$ 与 $R$ 具有相同的稀疏模式.数值线性代数中的一些算法满足分量级后向误差估计，另一些则不满足；后一种情形必须采用式 (17.4) 那样较弱的范数级估计.第二次世界大战后数值分析的早期年代，大多数误差估计都是范数级的；近几十年，研究逐渐转向分量级分析，因为这类结果更尖锐，而且满足分量级界的算法对变量缩放不那么敏感.本书不再展开这些问题.
+
+最后说明式 (17.5) 或 (17.14) 这样的定量界，与用 $O(\epsmach)$ 记号表达的式 (17.4) 之间的关系.为什么不干脆省略式 (17.4) 这样的粗略陈述？原因是定量界必须包含 $\sqrt m$ 或 $m$ 等因子，而且依赖于范数，难以记忆；由于统计性的抵消，在实践中它们往往还过于保守.因此，我们更喜欢用 $O(\epsmach)$ 表达大多数结果；这也是数值分析家最容易记住的形式.
+
+\section*{习题}
+
+\begin{enumerate}[label=\textbf{17.\arabic*}]
+    \item 对任意给定的范数 $\|\cdot\|$，界 (17.5) 都比 (17.4) 给出更定量的范数级界.分别对下列范数推导这样的界：
+    \begin{enumerate}[label=(\alph*)]
+        \item $\|\cdot\|_1$；
+        \item $\|\cdot\|_2$；
+        \item $\|\cdot\|_\infty$.
+    \end{enumerate}
+
+    \item 三角系统 (17.1) 使用回代求解.定理 17.1 对误差 $\|\widetilde x-x\|$ 究竟意味着什么？
+
+    \item 设 $L\in\C^{m\times m}$ 是单位下三角矩阵（即对角线元素都等于 1）.为方便起见，将 $L$ 写成
+    \[
+    L=\begin{bmatrix}
+    1&&&&\\
+    -\ell_{2,1}&1&&&\\
+    -\ell_{3,1}&-\ell_{3,2}&1&&\\
+    \vdots&\vdots&\ddots&\ddots&\\
+    -\ell_{m,1}&-\ell_{m,2}&-\ell_{m,3}&\cdots&1
+    \end{bmatrix},
+    \]
+    并定义 $M=L^{-1}$.
+    \begin{enumerate}[label=(\alph*)]
+        \item 推导 $m_{ij}$ 的公式（公式中可以包含 $M$ 的其他条目）. $m_{ij}$ 依赖 $L$ 的哪些条目？
+        \item 假设 $L$ 的次对角线条目是相互独立、等概率取 $\pm1$ 的随机数.固定 $k$，定义 $\mu_1=m_{k,k}$、$\mu_2=m_{k+1,k}$、$\mu_3=m_{k+2,k}$、$\ldots$.为这些 $\mu_j$ 写出带随机系数的递推关系组.
+        \item 实验表明，条目为 $\pm1$ 的随机三角矩阵按指数速度病态：若 $\kappa_m$ 表示这类 $m\times m$ 矩阵的 2-范数条件数，则
+        \[
+        \lim_{m\to\infty}(\kappa_m)^{1/m}=C
+        \]
+        对某个 $1<C<1.5$ 的常数 $C$ 成立.（这个极限可以用多种方式更精确地表述，但这里不讨论技术细节；可以把它理解为“以概率 1 成立”.）对不同维数的随机矩阵进行数值实验，将 $C$ 的估计精确到 10\% 以内，或达到更高精度.
+        \item 如果把 (c) 中的随机矩阵替换成 (b) 中的随机序列 $\mu_1,\mu_2,\mu_3,\ldots$，就可以进行更大规模的实验.解释（不要求证明）为什么也可以通过研究这些序列得到常数 $C$，并进行数值实验，将 $C$ 的估计精确到 1\% 以内，或达到更高精度.
+    \end{enumerate}
+\end{enumerate}
+
+\end{document}

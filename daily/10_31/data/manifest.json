@@ -1,0 +1,25 @@
+{
+  "case_id": "exp01-100-v1",
+  "function": "f(x) = exp(x)",
+  "interval": [
+    0,
+    1
+  ],
+  "source": "由已知解析函数生成的无噪声教学数据，不是实测数据。",
+  "nodes": {
+    "file": "nodes.csv",
+    "count": 100,
+    "x_rule": "x_i = i / 99, i = 0,...,99",
+    "y_rule": "math.exp(x_i)"
+  },
+  "queries": {
+    "file": "queries.csv",
+    "count": 99,
+    "x_rule": "q_i = (i + 0.5) / 99, i = 0,...,98",
+    "y_reference_rule": "math.exp(q_i)",
+    "usage": "y_reference只供计算后评估误差，不传给插值或拟合函数。"
+  },
+  "precision": "Python binary64 float; CSV以17位有效数字保留浮点值，不是符号精确值。",
+  "selection": "nodes.csv为候选采样点；入门插值先选2、3或少量节点，不要求构造99次全局插值。",
+  "evaluation": "误差统计针对99个中点查询，不能当作连续区间最大误差的证明。"
+}

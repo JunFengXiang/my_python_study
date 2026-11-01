@@ -1,0 +1,315 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\title{数值线性代数\quad 第 33 讲：Arnoldi 迭代}
+\author{Lloyd N. Trefethen、David Bau III\quad 中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+\pagestyle{plain}
+
+尽管 Krylov 子空间矩阵迭代领域已经出现了许多名称和缩写，但这些算法都建立
+在少数几个共同的基本思想之上。描述这一基础有多种方式；本讲选择 Arnoldi
+过程，把它看作一种 Gram--Schmidt 风格的迭代，用来将矩阵化为 Hessenberg 形式。
+
+\section*{Arnoldi 与 Gram--Schmidt 的类比}
+
+设想你被困在荒岛上，为了消磨时间，决定从预先指定的第一列 $q_1$ 出发，
+逐列构造正交相似变换，把一个非 Hermitian 矩阵化为 Hessenberg 形式。令人
+惊讶的是，你大概一小时就能解决这个问题，剩下的时间还够采些椰子作为晚餐。
+你构造出的这种方法就叫作 Arnoldi 迭代。如果 $A$ 是 Hermitian 的，Hessenberg
+矩阵会变成三对角矩阵，$n$ 项递推关系会变成三项递推关系，而方法的名称也会
+改为 Lanczos 迭代；第 36 讲将讨论它。
+
+这里有一个类比。对于矩阵 $A$ 的 QR 分解 $A=QR$，本书讨论过两种方法：
+Householder 反射通过一系列正交操作把 $A$ 三角化；Gram--Schmidt 正交化则通过
+一系列三角操作把 $A$ 的列正交化。虽然在舍入误差存在时，Householder 反射得到
+的矩阵 $Q$ 通常更接近正交矩阵，但 Gram--Schmidt 过程有一个优势：它可以中途
+停止，留下 $A$ 的前 $n$ 列的约化 QR 分解。
+
+对矩阵 $A$ 计算 Hessenberg 约化 $A=QHQ^*$ 的问题完全类似。这里也有两种标准
+方法：Householder 反射（现在从 $A$ 的左右两侧同时作用）和 Arnoldi 迭代。
+因此，Arnoldi 是 Gram--Schmidt 在“通过相似变换化为 Hessenberg 形式”这一问题
+中的对应物，而不是在 QR 分解问题中的对应物。和 Gram--Schmidt 一样，它可以
+中途停止，留下一个部分 Hessenberg 约化；这个约化可以用多种方式构造特征值或
+方程组的迭代算法。
+
+因此，本讲之于第 26 讲，正如第 8 讲之于第 10 讲。前面提到的四种算法可以
+概括为下表：
+
+\begin{center}
+\renewcommand{\arraystretch}{1.45}
+\begin{tabular}{>{\centering\arraybackslash}m{3.9cm}|c|c}
+ & $A=QR$ & $A=QHQ^*$\\
+\hline
+正交结构化 & Householder & Householder\\
+结构化正交化 & Gram--Schmidt & Arnoldi
+\end{tabular}
+\end{center}
+
+在本书余下部分，$m$ 和 $n<m$ 为正整数，$A$ 是一个实或复的 $m\times m$
+矩阵，并且 $\lVert\cdot\rVert=\lVert\cdot\rVert_2$。现在还会有一个角色登场：
+记作 $b$ 的 $m$ 维向量。Arnoldi 过程需要这个向量才能启动。对于特征值问题的
+应用，通常假设 $b$ 是随机向量；对于后面各讲讨论的方程组问题，$b$ 将是右端
+向量，或更一般地，是初始残差（见习题 35.5）。
+
+\section*{Arnoldi 迭代的机制}
+
+通过正交相似变换把 $A$ 完全化为 Hessenberg 形式，可以写成
+$A=QHQ^*$，或者 $AQ=QH$。但在迭代方法中，我们认为 $m$ 很大，甚至可以
+是无穷大，因此不可能计算完整的约化。我们只考虑 $AQ=QH$ 的前 $n$ 列。
+令 $Q_n$ 为一个 $m\times n$ 矩阵，其列是 $Q$ 的前 $n$ 列：
+
+\begin{equation}
+Q_n=\begin{bmatrix}q_1&q_2&\cdots&q_n\end{bmatrix}.
+\tag{33.1}
+\end{equation}
+
+严格地说，由于 $Q_n$ 是矩形矩阵，按照本书其他地方的记号习惯应在这些符号上
+加帽子；但为使公式简洁，下面不这样做。
+
+令 $\widetilde H_n$ 为 $H$ 左上角的 $(n+1)\times n$ 部分，它也是一个
+Hessenberg 矩阵：
+
+\begin{equation}
+\widetilde H_n=
+\begin{bmatrix}
+h_{11}&\cdots&h_{1n}\\
+h_{21}&h_{22}&\cdots\\
+&\ddots&\ddots&\vdots\\
+&&h_{n,n-1}&h_{nn}\\
+&&&h_{n+1,n}
+\end{bmatrix}.
+\tag{33.2}
+\end{equation}
+
+于是有
+
+\begin{equation}
+AQ_n=Q_{n+1}\widetilde H_n.
+\tag{33.3}
+\end{equation}
+
+这个关系的第 $n$ 列为
+
+\begin{equation}
+Aq_n=h_{1n}q_1+\cdots+h_{nn}q_n+h_{n+1,n}q_{n+1}.
+\tag{33.4}
+\end{equation}
+
+换句话说，$q_{n+1}$ 满足一个 $(n+1)$ 项递推关系；该关系涉及它自己以及此前的
+Krylov 向量。
+
+Arnoldi 迭代不过是实现式（33.4）的修正 Gram--Schmidt 迭代。下面的算法应当
+与算法 8.1 对照阅读。
+
+\begin{center}
+\fbox{\begin{minipage}{0.86\textwidth}
+\textbf{算法 33.1\quad Arnoldi 迭代}
+
+\medskip
+\begin{align*}
+&b=\text{任意向量},\qquad q_1=b/\lVert b\rVert,\\
+&\text{for }n=1,2,3,\ldots\\
+&\qquad v=Aq_n,\\
+&\qquad\text{for }j=1\text{ to }n\\
+&\qquad\qquad h_{jn}=q_j^*v,\\
+&\qquad\qquad v=v-h_{jn}q_j,\\
+&\qquad h_{n+1,n}=\lVert v\rVert
+  \quad\text{（关于 }h_{n+1,n}=0\text{，见习题 33.2）},\\
+&\qquad q_{n+1}=v/h_{n+1,n}.
+\end{align*}
+\end{minipage}}
+\end{center}
+
+Arnoldi 过程非常简单。在 MATLAB 这样的高级语言中，它可以用不到十行代码实现。
+矩阵 $A$ 只在乘积 $Aq_n$ 中出现，而这个乘积可以像上一讲所述那样，通过黑盒
+过程计算。
+
+\section*{Krylov 矩阵的 QR 分解}
+
+Arnoldi 过程的力量来自可以对它作出的多种解释，以及这些解释所启发的算法。
+第一种解释从递推式（33.4）出发。由该式显然可知，向量组 $\{q_j\}$ 构成由
+$A$ 和 $b$ 生成的连续 Krylov 子空间的基。定义
+
+\begin{equation}
+\mathcal K_n
+=\operatorname{span}\{b,Ab,\ldots,A^{n-1}b\}
+=\operatorname{span}\{q_1,q_2,\ldots,q_n\}
+\subseteq\mathbb C^m.
+\tag{33.5}
+\end{equation}
+
+此外，由于 $q_j$ 两两正交归一，这些向量组还是正交归一基。因此，Arnoldi 过程
+可以描述为：系统地构造连续 Krylov 子空间的正交归一基。
+
+为了用矩阵形式表达这一观察，令 $K_n$ 为 $m\times n$ 的 Krylov 矩阵：
+
+\begin{equation}
+K_n=
+\begin{bmatrix}
+b&Ab&\cdots&A^{n-1}b
+\end{bmatrix}.
+\tag{33.6}
+\end{equation}
+
+于是 $K_n$ 必有约化 QR 分解
+
+\begin{equation}
+K_n=Q_nR_n,
+\tag{33.7}
+\end{equation}
+
+其中 $Q_n$ 就是前面定义的矩阵。在 Arnoldi 过程中，$K_n$ 和 $R_n$ 都不会被
+显式构造。这样做会导致不稳定，因为一般而言这两个矩阵的条件数极差：$K_n$
+的各列最终都会趋近于 $A$ 的同一个主特征向量。
+
+不过，式（33.6）和（33.7）直观地解释了 Arnoldi 过程为什么能有效地确定某些
+特征值。显然，$K_n$ 可能包含关于 $A$ 的最大模特征值的良好信息；而 QR 分解
+则可能通过逐个剥离近似特征向量来揭示这些信息，最先剥离的将是主特征向量。
+
+上面的解释可能会让读者想起本书前面出现过的类似讨论。式（33.6）–（33.7）
+与 Arnoldi 算法之间的关系，类似于同时迭代与 QR 算法之间的关系：前者容易
+理解但不稳定，后者更微妙但更稳定。区别在于，Arnoldi 迭代建立在列为
+$b,Ab,\ldots,A^{n-1}b$ 的矩阵的 QR 分解（33.7）上；同时迭代和 QR 算法则
+建立在列为 $A^ne_1,\ldots,A^ne_m$ 的矩阵的 QR 分解（28.16）上。这个平行
+关系可概括为：
+
+\begin{center}
+\renewcommand{\arraystretch}{1.45}
+\begin{tabular}{>{\centering\arraybackslash}m{4.0cm}|c|c}
+ & 准直接 & 迭代\\
+\hline
+直接但不稳定 & 同时迭代 & （33.6）–（33.7）\\
+微妙但稳定 & QR 算法 & Arnoldi
+\end{tabular}
+\end{center}
+
+\section*{投影到 Krylov 子空间}
+
+还可以把 Arnoldi 过程看作计算到连续 Krylov 子空间上的投影。注意，
+$Q_n^*Q_{n+1}$ 是一个 $n\times(n+1)$ 的单位矩阵，即主对角线上为 1、其余
+位置为 0 的矩阵。因此，$Q_n^*Q_{n+1}\widetilde H_n$ 是从
+$\widetilde H_n$ 中删去最后一行后得到的 $n\times n$ Hessenberg 矩阵：
+
+\begin{equation}
+H_n=
+\begin{bmatrix}
+h_{11}&\cdots&h_{1n}\\
+h_{21}&h_{22}&\cdots\\
+&\ddots&\ddots&\vdots\\
+&&h_{n,n-1}&h_{nn}
+\end{bmatrix}.
+\tag{33.8}
+\end{equation}
+
+由式（33.3）立即得到
+
+\begin{equation}
+H_n=Q_n^*AQ_n.
+\tag{33.9}
+\end{equation}
+
+这个矩阵可以理解为：在基 $\{q_1,\ldots,q_n\}$ 下，$A$ 投影到 $\mathcal K_n$
+上的正交投影的表示。这个说法具体是什么意思？考虑线性算子
+$\mathcal K_n\to\mathcal K_n$：给定 $v\in\mathcal K_n$，先对它作用 $A$，
+再把 $Av$ 正交投影回空间 $\mathcal K_n$。从 $\mathbb C^m$ 到 $\mathcal K_n$
+的正交投影算子是 $Q_nQ_n^*$，因此相对于 $\mathbb C^m$ 的标准基，这个算子
+可以写为 $Q_nQ_n^*A$；相对于由 $Q_n$ 的列构成的基，它就写成 $Q_n^*AQ_n$。
+
+% 这一段含有较长的拉丁字母术语，局部放宽断行以避免挤出页边。
+\begin{sloppypar}
+刚才描述的投影在应用数学和数值数学中随处可见。在另一个语境中，它叫作
+Rayleigh--Ritz 过程；并非巧合，$H_n$ 的对角元素正是相对于向量 $q_j$ 的
+$A$ 的 Rayleigh 商。这种投影过程也是偏微分方程有限元方法及其较新的近亲
+谱方法的思想基础之一。
+\end{sloppypar}
+
+既然 $H_n$ 是 $A$ 的一个投影，人们自然会猜想它的特征值可能与 $A$ 的特征值
+存在有用的关系。记
+
+\begin{equation}
+\{\theta_j\}=\{\text{$H_n$ 的特征值}\}.
+\tag{33.10}
+\end{equation}
+
+这 $n$ 个数称为 Arnoldi 特征值估计（第 $n$ 步），或者称为 $A$ 关于
+$\mathcal K_n$ 的 Ritz 值。下一讲将看到，即使 $n\ll m$，其中一些数也可能是
+$A$ 的某些特征值的极其精确的近似。
+
+\section*{定理}
+
+下面的定理总结本讲的内容；它应当与定理 28.3 对照。
+
+\textbf{定理 33.1.}
+Arnoldi 迭代产生的矩阵 $Q_n$ 是 Krylov 矩阵（33.6）的约化 QR 因子：
+
+\begin{equation}
+K_n=Q_nR_n.
+\tag{33.11}
+\end{equation}
+
+Hessenberg 矩阵 $H_n$ 是相应的投影：
+
+\begin{equation}
+H_n=Q_n^*AQ_n.
+\tag{33.12}
+\end{equation}
+
+连续迭代量满足
+
+\begin{equation}
+AQ_n=Q_{n+1}\widetilde H_n.
+\tag{33.13}
+\end{equation}
+
+\section*{习题}
+
+\paragraph{33.1.}
+令 $A\in\mathbb C^{m\times m}$、$b\in\mathbb C^m$ 任意。证明：任意
+$x\in\mathcal K_n$ 都可以写成 $x=p(A)b$，其中 $p$ 是次数 $\le n-1$ 的多项式。
+
+\paragraph{33.2.}
+设对某个 $A$ 和 $b$ 执行算法 33.1，在第 $n$ 步遇到
+$h_{n+1,n}=0$。
+
+\begin{enumerate}[label=(\alph*)]
+\item 说明此时式（33.13）如何简化。这对完整的 $m\times m$ Hessenberg
+约化 $A=QHQ^*$ 的结构意味着什么？
+\item 证明 $\mathcal K_n$ 是 $A$ 的不变子空间，即 $A\mathcal K_n\subseteq\mathcal K_n$。
+\item 如果按式（33.5）将由 $b$ 生成的 Krylov 子空间定义为
+  $\mathcal K_k=\operatorname{span}\{b,Ab,\ldots,A^{k-1}b\}$，证明
+  $\mathcal K_n=\mathcal K_{n+1}=\mathcal K_{n+2}=\cdots$。
+\item 证明 $H_n$ 的每一个特征值都是 $A$ 的特征值。
+\item 如果 $A$ 非奇异，证明方程组 $Ax=b$ 的解 $x$ 属于 $\mathcal K_n$。
+\end{enumerate}
+
+当出现 $h_{n+1,n}=0$ 时，称 Arnoldi 迭代发生了 breakdown（中止/崩溃），
+但这是一个良性的 breakdown。对于计算特征值（第 34 讲）或求解方程组
+（第 35 讲）的应用，由于习题 33.2(d)、(e) 的结论通常意味着已经收敛，
+所以可以终止迭代。另一种选择是随机选取一个新的正交归一向量 $q_{n+1}$，
+然后继续迭代。
+
+\paragraph{33.3.}
+\begin{enumerate}[label=(\alph*)]
+\item 假设对某个 $A$ 和 $b$ 执行算法 33.1，直到完成（$n=m$），且没有发生
+  上一道习题所述的 breakdown。证明 $A$ 的最小多项式次数为 $m$。
+\item 反过来，假设 $A$ 的最小多项式次数为 $m$。证明这并不意味着对于某个
+  特定的 $b$，算法 33.1 必然会运行到完成。
+\item 解释为什么 (a) 的结论不与习题 25.1(b) 矛盾。
+\end{enumerate}
+
+\end{document}

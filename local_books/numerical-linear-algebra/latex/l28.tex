@@ -1,0 +1,419 @@
+\documentclass[UTF8,fontset=none,12pt]{ctexart}
+
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{Songti SC}
+
+\usepackage[a4paper,margin=2.35cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\title{数值线性代数\quad 第 28 讲：无移位 QR 算法}
+\author{Lloyd N. Trefethen、David Bau III\quad 中文阅读版}
+\date{}
+
+\begin{document}
+\maketitle
+\pagestyle{plain}
+
+QR 算法诞生于 20 世纪 60 年代初，是数值分析中的瑰宝之一。本讲说明，
+在最简单的形式下，它可以看成一个稳定地计算矩阵幂
+$A,A^2,A^3,\ldots$ 的 QR 分解的过程。
+
+\section*{QR 算法}
+
+QR 算法最基本的版本简单得近乎不可思议。
+
+\paragraph{算法 28.1（“纯” QR 算法）}
+\begin{verbatim}
+A^(0) = A
+for k = 1, 2, ...
+      Q^(k) R^(k) = A^(k-1)       QR factorization of A^(k-1)
+      A^(k) = R^(k) Q^(k)         recombine factors in reverse order
+\end{verbatim}
+
+我们所做的全部事情，就是对当前矩阵作一次 QR 分解，把得到的因子
+$Q$ 和 $R$ 反向相乘为 $RQ$，然后重复。尽管如此，在适当假设下，
+这个简单算法仍会收敛到矩阵 $A$ 的 Schur 形式：一般矩阵的 Schur 形式
+是上三角矩阵，Hermitian 矩阵的 Schur 形式是对角矩阵。为使讨论简单，
+本讲继续沿用上一讲的假设：$A$ 是实对称矩阵，特征值为实数
+$\lambda_j$，特征向量 $q_j$ 标准正交。于是，我们关心的是矩阵
+$A^{(k)}$ 向对角形式的收敛。
+
+为了让收敛到对角形式真正能够用于求特征值，所进行的操作当然必须是
+相似变换。这一点很容易验证：QR 算法先通过
+
+$$
+R^{(k)}=(Q^{(k)})^TA^{(k-1)}
+$$
+
+把 $A^{(k-1)}$ 三角化，再在右侧乘以 $Q^{(k)}$，从而得到
+
+$$
+A^{(k)}=(Q^{(k)})^TA^{(k-1)}Q^{(k)}.
+$$
+
+事实上，我们在第 26 讲已经见过这个相似变换：它就是“坏主意”中讨论的
+变换。试图用一步操作把 $A$ 约化为三角形式时它确实是坏主意，但作为
+迭代的基础，它却非常强大。
+
+和 Rayleigh 商迭代一样，实对称矩阵的 QR 算法具有三次收敛潜力。不过，
+要达到这种性能，必须在每一步引入移位。把算法变成实用算法还需要三项修改：
+
+1. 开始迭代前，先把 $A$ 约化为三对角形式（第 26 讲）。
+2. 每一步分解的不是 $A^{(k)}$，而是移位矩阵
+   $A^{(k)}-\mu^{(k)}I$，其中 $\mu^{(k)}$ 是某个特征值估计。
+3. 只要可能，尤其是在发现一个特征值时，就把问题“降阶”（deflate），
+     将 $A^{(k)}$ 拆成更小的子矩阵。
+
+包含这些修改的 QR 算法可以概括为：
+
+\paragraph{算法 28.2（“实用” QR 算法）}
+\begin{verbatim}
+(Q^(0))^T A^(0) Q^(0) = A       A^(0) is a tridiagonalization of A
+for k = 1, 2, ...
+      Pick a shift mu^(k)        e.g., choose mu^(k) = A^(k-1)_{m,m}
+      Q^(k)R^(k) = A^(k-1) - mu^(k)I
+                                  QR factorization
+      A^(k) = R^(k)Q^(k) + mu^(k)I
+                                  recombine factors
+      If any off-diagonal element A^(k)_{j+1,j} is close to zero,
+          set A^(k)_{j,j+1} = A^(k)_{j+1,j} = 0 and obtain
+          A^(k) = [ A_1  0 ; 0  A_2 ]
+          then apply the QR algorithm to A_1 and A_2
+\end{verbatim}
+
+这个带有良好移位的 QR 算法，自 20 世纪 60 年代初以来一直是计算矩阵
+全部特征值的标准方法。直到 20 世纪 90 年代，才出现一个竞争者：第 30 讲
+介绍的分治算法。三对角化已在第 26 讲讨论，移位将在下一讲讨论，而降阶
+在本书中不再展开。下面先把注意力限制到“纯” QR 算法，解释它如何找到
+特征值。
+
+\section*{未归一化的同时迭代}
+
+我们的办法是把 QR 算法联系到另一个行为更直观的方法：同时迭代。
+同时迭代就是一次对多个向量应用幂迭代，也称为块幂迭代。设从一组线性无关
+的向量 $v_1^{(0)},\ldots,v_n^{(0)}$ 出发。直观上，正如在适当假设下
+$A^kv_1^{(0)}$ 会趋近于对应于最大模特征值的特征向量，空间
+
+$$
+\operatorname{span}\{A^kv_1^{(0)},\ldots,A^kv_n^{(0)}\}
+$$
+
+也应趋近于由 $A$ 的 $n$ 个最大模特征值对应的特征向量
+$q_1,\ldots,q_n$ 张成的空间。
+
+用矩阵表示，定义 $m\times n$ 的初始矩阵
+
+\begin{equation}
+ V^{(0)}=\begin{bmatrix}v_1^{(0)}&\cdots&v_n^{(0)}\end{bmatrix}.
+\tag{28.1}
+\end{equation}
+
+定义应用 $A$ 共 $k$ 次后的结果
+
+\begin{equation}
+ V^{(k)}=A^kV^{(0)}
+ =\begin{bmatrix}v_1^{(k)}&\cdots&v_n^{(k)}\end{bmatrix}.
+\tag{28.2}
+\end{equation}
+
+我们真正关心的是 $V^{(k)}$ 的列空间，因此对它作约化 QR 分解，为该空间
+提取一个条件良好的基：
+
+\begin{equation}
+ \widehat Q^{(k)}\widehat R^{(k)}=V^{(k)}.
+\tag{28.3}
+\end{equation}
+
+其中 $\widehat Q^{(k)}$ 的尺寸为 $m\times n$，$\widehat R^{(k)}$ 的尺寸为
+$n\times n$。在适当假设下，直观上可以期待 $\widehat Q^{(k)}$ 的各列收敛到
+特征向量 $\pm q_1,\pm q_2,\ldots,\pm q_n$。
+
+为了分析这一点，把 $v_j^{(0)}$ 和 $v_j^{(k)}$ 在 $A$ 的特征向量基下展开：
+
+\[
+v_j^{(0)}=a_{1j}q_1+\cdots+a_{mj}q_m,
+\qquad
+v_j^{(k)}=\lambda_1^ka_{1j}q_1+\cdots+\lambda_m^ka_{mj}q_m.
+\]
+
+和上一节一样，只要满足两个条件，就能得到简单的收敛结果。第一个条件是
+前 $n+1$ 个特征值的模彼此满足所需的间隔：
+
+\begin{equation}
+ |\lambda_1|>|\lambda_2|>\cdots>|\lambda_n|
+ >|\lambda_{n+1}|\ge|\lambda_{n+2}|\ge\cdots\ge|\lambda_m|.
+\tag{28.4}
+\end{equation}
+
+第二个条件要求展开系数在适当意义下非奇异。令 $\widehat Q$ 为列向量
+$q_1,\ldots,q_n$ 组成的 $m\times n$ 矩阵。注意，这里的 $\widehat Q$
+是特征向量矩阵，与约化 QR 分解中的 $\widehat Q^{(k)}$ 完全不同。
+我们假设
+
+\begin{equation}
+ \widehat Q^TV^{(0)}\text{ 的所有顺序主子式都非奇异}.
+\tag{28.5}
+\end{equation}
+
+这里的“所有顺序主子式”是指左上角的
+$1\times1,2\times2,\ldots,n\times n$ 方形子矩阵的行列式。
+条件 (28.5) 恰好等价于 $\widehat Q^TV^{(0)}$ 存在 LU 分解，见习题 20.1。
+
+\paragraph{定理 28.1.}
+假设迭代 (28.1)–(28.3) 被执行，并且假设 (28.4)、(28.5) 均满足。
+那么当 $k\to\infty$ 时，矩阵 $\widehat Q^{(k)}$ 的各列线性收敛到 $A$ 的
+特征向量：对 $1\le j\le n$，
+
+\begin{equation}
+ \|\widehat q_j^{(k)}\mp q_j\|=O(C^k),
+ \qquad
+ C=\max_{1\le j\le n}\left|\frac{\lambda_{j+1}}{\lambda_j}\right|<1.
+\tag{28.6}
+\end{equation}
+
+和上一讲的定理一样，$\pm$ 表示每一步选择两个符号中的一个，然后相应的
+界成立。
+
+\paragraph{证明}
+把 $\widehat Q$ 扩展成由 $A$ 的特征向量组成的完整 $m\times m$ 正交矩阵
+$Q$，令 $\Lambda$ 为相应的特征值对角矩阵，于是
+
+$$
+A=Q\Lambda Q^T.
+$$
+
+正如 $\widehat Q$ 是 $Q$ 的前 $n$ 列，令 $\widehat\Lambda$ 为 $\Lambda$
+的左上角 $n\times n$ 对角子矩阵。于是，当 $k\to\infty$ 时，
+
+$$
+\begin{aligned}
+V^{(k)}=A^kV^{(0)}
+ &=Q\Lambda^kQ^TV^{(0)}\\
+ &=\widehat Q\widehat\Lambda^k\widehat Q^TV^{(0)}
+   +O\bigl(|\lambda_{n+1}|^k\bigr).
+\end{aligned}
+$$
+
+如果 (28.5) 成立，那么特别地 $\widehat Q^TV^{(0)}$ 非奇异。将误差项右乘
+$(\widehat Q^TV^{(0)})^{-1}\widehat Q^TV^{(0)}$，可以把上式改写为
+
+$$
+V^{(k)}=
+\bigl(\widehat Q\widehat\Lambda^k+O(|\lambda_{n+1}|^k)\bigr)
+\widehat Q^TV^{(0)}.
+$$
+
+由于 $\widehat Q^TV^{(0)}$ 非奇异，这个矩阵的列空间与
+
+$$
+\widehat Q\widehat\Lambda^k+O(|\lambda_{n+1}|^k)
+$$
+
+的列空间相同。由 $\widehat Q\widehat\Lambda^k$ 的形式和假设 (28.4)，
+可知该列空间线性收敛到 $\widehat Q$ 的列空间。
+
+实际上，我们假设的不只是 $\widehat Q^TV^{(0)}$ 非奇异，而是它的所有顺序
+主子式都非奇异。因此，上面的论证也适用于 $V^{(k)}$ 和 $\widehat Q$
+的各个前导列子集：第一列、前两列、前三列，依此类推。对于每个这样的
+列空间，都得到线性收敛。再结合约化 QR 分解 (28.3) 的定义，就得到 (28.6)。
+\hfill$\square$
+
+\section*{同时迭代}
+
+当 $k\to\infty$ 时，算法 (28.1)–(28.3) 中的向量
+$v_1^{(k)},\ldots,v_n^{(k)}$ 都会趋近于同一个主导特征向量 $q_1$ 的倍数。
+因此，虽然它们张成的空间趋近于有用的空间，但这些向量会构成该空间的
+高度病态基。如果直接在浮点运算中执行上述同时迭代，所需信息很快会被舍入
+误差抹去。
+
+补救办法很简单：每一步都正交归一化，而不是只在开始时归一化。因此不再构造
+上面定义的 $V^{(k)}$，而构造具有相同列空间的另一列矩阵序列 $Z^{(k)}$。
+
+\paragraph{算法 28.3（同时迭代）}
+\begin{verbatim}
+Pick Qhat^(0) in R^(m x n) with orthonormal columns.
+for k = 1, 2, ...
+      Z = A Qhat^(k-1)
+      Qhat^(k) Rhat^(k) = Z       reduced QR factorization of Z
+\end{verbatim}
+
+从算法形式立刻可以看出，$\widehat Q^{(k)}$ 和 $Z^{(k)}$ 的列空间相同，
+二者都等于 $A^k\widehat Q^{(0)}$ 的列空间。因此，从数学上说，这个新的
+同时迭代形式与旧形式具有相同的收敛条件。
+
+\paragraph{定理 28.2.}
+算法 28.3 生成的矩阵 $\widehat Q^{(k)}$ 与定理 28.1 中迭代
+(28.1)–(28.3) 生成的矩阵相同（假设初始矩阵 $\widehat Q^{(0)}$ 相同）。
+在同样的假设 (28.4)、(28.5) 下，它按照定理 28.1 所述方式收敛。
+
+\section*{同时迭代与 QR 算法}
+
+现在可以解释 QR 算法了。它等价于对一整组 $n=m$ 个初始向量进行同时迭代，
+这组向量就是单位矩阵的列，即 $\widehat Q^{(0)}=I$。由于此时矩阵是方阵，
+我们处理的是完整 QR 分解，可以去掉 $\widehat Q^{(k)}$ 和
+$\widehat R^{(k)}$ 上的帽号。下文用 $Q^{(k)}$ 表示 QR 算法中的矩阵；
+用 $\widehat Q^{(k)}$ 表示同时迭代中的矩阵，以免混淆。
+
+同时迭代（$\widehat Q^{(0)}=I$）由下列公式定义：
+
+\begin{align}
+ \widehat Q^{(0)}&=I, &\tag{28.7}\\
+ Z&=A\widehat Q^{(k-1)}, &\tag{28.8}\\
+ Z&=\widehat Q^{(k)}R^{(k)}, &\tag{28.9}\\
+ A^{(k)}&=(\widehat Q^{(k)})^TA\widehat Q^{(k)}. &\tag{28.10}
+\end{align}
+
+纯 QR 算法由下列公式定义，并额外定义一个 $m\times m$ 矩阵 $Q^{(k)}$：
+
+\begin{align}
+ A^{(0)}&=A, &\tag{28.11}\\
+ A^{(k-1)}&=Q^{(k)}R^{(k)}, &\tag{28.12}\\
+ A^{(k)}&=R^{(k)}Q^{(k)}, &\tag{28.13}\\
+ Q^{(k)}&=Q^{(1)}Q^{(2)}\cdots Q^{(k)}. &\tag{28.14}
+\end{align}
+
+此外，对两种算法都定义累计的上三角因子
+
+\begin{equation}
+ \mathcal R^{(k)}=R^{(k)}R^{(k-1)}\cdots R^{(1)}.
+\tag{28.15}
+\end{equation}
+
+这里用 $\mathcal R^{(k)}$ 区分累计乘积和第 $k$ 步的因子 $R^{(k)}$。
+
+\paragraph{定理 28.3.}
+同时迭代 (28.7)–(28.10) 与纯 QR 算法 (28.11)–(28.14) 生成相同的
+$\mathcal R^{(k)}$、$Q^{(k)}$ 和 $A^{(k)}$。它们由 $A$ 的 $k$ 次幂的
+QR 分解及相应的相似变换定义：
+
+\begin{equation}
+ A^k=Q^{(k)}\mathcal R^{(k)},
+\tag{28.16}
+\end{equation}
+
+以及
+
+\begin{equation}
+ A^{(k)}=(Q^{(k)})^TAQ^{(k)}.
+\tag{28.17}
+\end{equation}
+
+\paragraph{证明}
+对 $k$ 作归纳。$k=0$ 时结论显然：两种算法的公式都给出
+$A^0=Q^{(0)}=\mathcal R^{(0)}=I$ 以及 $A^{(0)}=A$，所以 (28.16)、
+(28.17) 立即成立。
+
+先考虑同时迭代的 $k\ge1$。由定义 (28.10)，(28.17) 自动成立；只需验证
+(28.16)：
+
+\[
+\begin{aligned}
+A^k
+ &=A\widehat Q^{(k-1)}\mathcal R^{(k-1)}\\
+ &=\widehat Q^{(k)}R^{(k)}\mathcal R^{(k-1)}\\
+ &=\widehat Q^{(k)}\mathcal R^{(k)}.
+\end{aligned}
+\]
+
+第一步使用归纳假设 (28.16)，第二步使用 (28.8)、(28.9)，第三步使用
+(28.15)。
+
+再考虑 QR 算法的 $k\ge1$。利用
+
+\[
+\begin{aligned}
+A^k
+ &=AQ^{(k-1)}\mathcal R^{(k-1)}\\
+ &=Q^{(k-1)}A^{(k-1)}\mathcal R^{(k-1)}\\
+ &=Q^{(k)}\mathcal R^{(k)}.
+\end{aligned}
+\]
+
+第一步来自归纳假设 (28.16)，第二步来自归纳假设 (28.17)，第三步使用
+(28.12)、(28.14)、(28.15)。最后，
+
+\[
+A^{(k)}=(Q^{(k)})^TA^{(k-1)}Q^{(k)}
+        =(Q^{(k)})^TAQ^{(k)},
+\]
+
+第一步由 (28.12)、(28.13) 得到，第二步由归纳假设 (28.17) 得到。
+\hfill$\square$
+
+\section*{QR 算法的收敛}
+
+现在已经具备了分析无移位 QR 算法收敛所需的全部工具。
+
+先看定性理解。式 (28.16)、(28.17) 是关键。前者说明 QR 算法为什么能够
+找到特征向量：它为矩阵幂 $A^k$ 的列空间构造标准正交基。后者说明它为什么
+能够找到特征值：由 (28.17)，$A^{(k)}$ 的对角条目是对应于 $Q^{(k)}$ 各列
+的 Rayleigh 商（见习题 27.1）。随着这些列收敛到特征向量，Rayleigh 商也
+收敛到相应特征值，并且根据 (27.3) 速度快一倍。同时，(28.17) 表明
+$A^{(k)}$ 的非对角条目是广义 Rayleigh 商，它们分别涉及 $A$ 的不同特征向量
+的左、右近似。随着这些近似收敛到不同的特征向量，它们必须变得正交，因此
+$A^{(k)}$ 的非对角条目必然趋于零。
+
+需要特别强调，式 (28.16)、(28.17) 对理解无移位 QR 算法极其基础。记住它们，
+几乎所有重要结论都可以由此推出。
+
+定量地说，由定理 28.2 可得以下结果。
+
+\paragraph{定理 28.4.}
+设纯 QR 算法（算法 28.1）作用于实对称矩阵 $A$。假设其特征值满足
+
+\[
+|\lambda_1|>|\lambda_2|>\cdots>|\lambda_m|,
+\]
+
+且对应的特征向量矩阵 $Q$ 的所有顺序主子式都非奇异。那么当 $k\to\infty$
+时，$A^{(k)}$ 以线性速率、收敛常数
+
+\[
+\max_{1\le j<m}\left|\frac{\lambda_{j+1}}{\lambda_j}\right|
+\]
+
+收敛到 $\operatorname{diag}(\lambda_1,\ldots,\lambda_m)$；对 $Q^{(k)}$
+的各列作必要的符号调整后，$Q^{(k)}$ 也以相同速率收敛到 $Q$。
+
+\section*{习题}
+
+\paragraph{28.1.}
+把无移位 QR 算法应用于正交矩阵会发生什么？先找出答案，再解释它与
+定理 28.4 的关系。
+
+\paragraph{28.2.}
+如果 QR 算法的每一步不能保持三对角结构，那么事先约化为三对角形式就几乎
+没有用处。幸运的是，它确实保持这一结构。
+
+\begin{enumerate}[label=(\alph*)]
+  \item 对三对角矩阵 $A$ 的 QR 分解 $A=QR$，$R$ 的哪些条目一般非零？
+  $Q$ 的哪些条目一般非零？（实际计算中不显式构造 $Q$。）
+  \item 证明形成乘积 $RQ$ 后会恢复三对角结构。
+  \item 说明如何在三对角矩阵的 QR 分解中使用 Givens 旋转或 $2\times2$
+  Householder 反射，从而把运算量大幅降到满矩阵所需运算量以下。
+\end{enumerate}
+
+\paragraph{28.3.}
+实对称矩阵 $A$ 有一个重数为 8 的特征值 1，而其余特征值的绝对值都不超过
+0.1。描述一个求出对应于主导特征值的 8 维特征子空间标准正交基的算法。
+
+\paragraph{28.4.}
+考虑算法 28.1 作用于三对角实对称矩阵 $A\in\mathbb{R}^{m\times m}$ 的一步。
+
+\begin{enumerate}[label=(\alph*)]
+  \item 如果只需要特征值，那么第 $k$ 步只需要 $A^{(k)}$，不需要 $Q^{(k)}$。
+  使用本书介绍的标准方法，确定从 $A^{(k-1)}$ 得到 $A^{(k)}$ 需要多少次
+  浮点运算。
+  \item 如果需要全部特征向量，还必须累积矩阵
+  $Q^{(k)}=Q^{(1)}Q^{(2)}\cdots Q^{(k)}$。确定从第 $k-1$ 步到第 $k$ 步
+  现在需要多少次浮点运算。
+\end{enumerate}
+
+\end{document}
