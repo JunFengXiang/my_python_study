@@ -67,7 +67,8 @@
 
 ## 仓库与教材
 
-- 当前实践：`JunFengXiang/my_python_study` 的 `study/mac-data-analysis` 和 [草稿PR #1](https://github.com/JunFengXiang/my_python_study/pull/1)。日常经验记 `docs/LEARNING_LOG.md`，每次只追加真实证据。
+- 当前实践：`JunFengXiang/my_python_study`，在 `study/mac-data-analysis` 学习分支整理，完成的成果合入 `main`；首次汇总见 [PR #1](https://github.com/JunFengXiang/my_python_study/pull/1)。日常经验记 `docs/LEARNING_LOG.md`，每次只追加真实证据。
+- 提交规则（2026-11-01确认）：每次提交并推送学习成果后，必须通过普通合并（merge commit）合入 `main`，保留原始提交历史，不使用 squash/rebase 改写这些记录。合并前检查提交范围和必要验证，合并后核对远端 `main` 已包含目标提交；仅推送学习分支不算交付完成。只纳入当次确认的学习成果，未完成练习和无关本地改动保持原状。
 - 数值来源：[numerical入口](../numerical/README.md)与旧 `numerical-computing-lab`。旧资料/代码保留，不并行维护第二套日更；更深入的QR/SVD、积分、ODE等按课程需要同量替换选做，不额外叠加。
 - 后期：[llm-from-scratch-lab](https://github.com/JunFengXiang/llm-from-scratch-lab)。到阶段时核验分支、PR、实现与依赖；不把main旧CI失败算作修复分支失败，不自动合并PR。Mac与5080分别建环境，不复制`.venv`，不自动连接机器或启动GPU训练。
 - [《利用Python进行数据分析》第3版](../local_books/python-data-analysis/README.md)：数组、表格、绘图主参考。
