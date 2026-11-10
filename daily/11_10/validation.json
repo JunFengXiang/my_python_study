@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-10",
+  "performed_by": "assistant",
+  "method": "Unmodified learner script executed in a temporary copy with Agg; original code, input and PNG preserved.",
+  "python": "3.13.12",
+  "numpy": "2.5.4",
+  "matplotlib": "3.11.2",
+  "absolute_tolerance": 1e-12,
+  "relative_tolerance": 0,
+  "residuals": {
+    "linear_system": 5.551115123125783e-17,
+    "M_vs_exact_rational_reference": 7.505107646466058e-14,
+    "node_reproduction": 1.1102230246251565e-16,
+    "first_derivative_at_joins": 1.1102230246251565e-16,
+    "second_derivative_at_joins": 0.0,
+    "natural_boundary": 0.0,
+    "query_0_275_reference": 0.0
+  },
+  "M": [
+    0.0,
+    -1.879549496146956,
+    -0.8636237897649437,
+    -1.0292234736217567,
+    0.0
+  ],
+  "midpoint_query": {
+    "x": 0.275,
+    "spline": 0.524143679608773
+  },
+  "shape": {
+    "x": [
+      5
+    ],
+    "y": [
+      5
+    ],
+    "h": [
+      4
+    ],
+    "k": [
+      4
+    ],
+    "A": [
+      3,
+      3
+    ],
+    "rhs": [
+      3
+    ],
+    "M": [
+      5
+    ],
+    "b": [
+      4
+    ],
+    "c": [
+      4
+    ],
+    "d": [
+      4
+    ]
+  },
+  "sampled_shape_comparison": {
+    "points_per_segment": 1001,
+    "max_abs_difference_from_piecewise_linear": 0.0013939814565545605,
+    "max_abs_difference_from_endpoints_chord": 0.0106226395677258,
+    "y_range": 0.22799999999999998,
+    "note": "Grid samples, not a proof of the continuous maximum; these are method differences, not errors against a known generating function."
+  },
+  "regenerated_png_matches_original": false,
+  "warnings": [
+    "FigureCanvasAgg is non-interactive, and thus cannot be shown"
+  ],
+  "original_sha256": {
+    "spline.py": "1384f3de40ebd7a4917c874179eead5b8e9cfdba15920396368554584db4fe68",
+    "data/nodes.csv": "fcadd7008ff5a2d2dc9990e343526fb3c85b7f3817703a2df93fad315ff7e202",
+    "spline.png": "5db5a70c765d7f8882f1aca8b3dbb38096f632e9abf38385da940f14a506915c"
+  },
+  "scope": "Only the given five-node problem; A has a fixed 3x3 layout. No whole-repository tests or independent learner-mastery claim."
+}
