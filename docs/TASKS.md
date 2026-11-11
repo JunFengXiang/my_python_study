@@ -1,3 +1,12 @@
+# 当前任务入口｜2026-11-11
+今天执行[LA02投影与NA02函数逼近](tasks/LA02-NA02-projection-approximation.md)，数值代数与数值分析各约60分钟，总计120分钟。输入、阅读、验收、保底与进阶均在新卡。
+依据[main最新学习指南](https://github.com/JunFengXiang/my_python_study/blob/main/docs/LEARNING_GUIDE.md)的11月11日调整；本分支旧指南与旧逐日表只作历史，不能覆盖新安排。
+五节点样条已在指导下完成，实际证据见[11月10日记录](https://github.com/JunFengXiang/my_python_study/blob/main/daily/11_10/README.md)；本人独立理解另验。新任务仅材料准备，不是已完成。
+学习分支保留历史与未合并差异，不自动合并main；本次不重复追加经验。
+历史索引：[样条](tasks/NA01-natural-spline.md)、[SVD](tasks/LA01-svd-reconstruction.md)。下方原矩阵卡原样保留，其中“当前/待完成/今天”均为历史语境。
+
+---
+
 # 当前任务：11月2日完成三节点矩阵求解与插值对照
 
 2026-11-02，日历 **Day 7/50**；稳定任务ID **NP05-matrix-interpolation**；MacBook CPU，最多120分钟。**状态：待完成，不是完成记录。**
