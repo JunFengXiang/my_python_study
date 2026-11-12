@@ -1,0 +1,56 @@
+{
+  "recorded_on": "2026-11-12",
+  "performed_by": "assistant",
+  "scope": "Run unchanged learner QR script and compare its arrays with the hand calculation; not independent learner assessment or general QR algorithm validation.",
+  "environment": {
+    "python": "3.13.12",
+    "numpy": "2.5.4"
+  },
+  "command": ".venv/bin/python daily/11_11/qr.py",
+  "capture_method": "runpy.run_path with stdout capture; inspect A, Q, R from the executed script",
+  "input_sha256": {
+    "daily/11_11/qr.py": "e0f0ee67d44b5675751505c3a5300591872700cc2701210a5a03f3149351d11d",
+    "daily/11_11/data/matrix.csv": "2156e6ee0d7e384372207debbd0cd9e1c280628e9f391322dc5a9302e5ea911e",
+    "daily/11_11/data/matrix_3x2.csv": "32b79467800ef4658844daccd134395d356cf823e4f4abf4eeb12168a8f98d92"
+  },
+  "shapes": {
+    "A": [
+      2,
+      2
+    ],
+    "Q": [
+      2,
+      2
+    ],
+    "R": [
+      2,
+      2
+    ]
+  },
+  "R": [
+    [
+      1.414213562373095,
+      2.82842712474619
+    ],
+    [
+      0.0,
+      1.414213562373095
+    ]
+  ],
+  "checks": {
+    "orthogonality_max_abs": 2.220446049250313e-16,
+    "reconstruction_max_abs": 4.440892098500626e-16,
+    "R_vs_hand_calculation_max_abs": 4.440892098500626e-16,
+    "R_below_diagonal_max_abs": 0.0
+  },
+  "absolute_tolerance": 1e-12,
+  "relative_tolerance": 0,
+  "passed": true,
+  "source_unchanged": true,
+  "untested": [
+    "general Gram-Schmidt implementation",
+    "learner implementation of the 3x2 extension",
+    "whole repository and CI"
+  ],
+  "numerical_analysis_evidence": "Hand calculations and dialogue; no numerical analysis code run claimed."
+}
