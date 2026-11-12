@@ -1,3 +1,46 @@
+# 当前任务入口｜2026-11-12
+
+北京时间 2026-11-12；原日历 Day 17，仅用于日期定位。阶段：数值代数与数值分析；稳定 ID：LA03-qr-solve / NA03-orthonormal-coordinates。依据 [main 最新指南](https://github.com/JunFengXiang/my_python_study/blob/main/docs/LEARNING_GUIDE.md)记录的 11 月 11 日用户调整，两科同步、每天合计最多 120 分钟；本次不修改任何提醒或 schedule。
+
+## 进度依据与本次边界
+
+[11 月 11—12 日学习总结](https://github.com/JunFengXiang/my_python_study/blob/main/daily/11_11/README.md)已记录：本人完成 2×2 QR 手算、填写核对代码和真实输出，讨论约化/完整 Q；数值分析已做最佳常数和函数内积练习。最后换基系数经助手纠正，尚需独立复核。3×2 QR 只有口头判断，未标为本人代码完成。
+[第三章作业](https://github.com/JunFengXiang/my_python_study/blob/main/numerical/numerical_analysis/ch03_approximation/README.md)是已准备的助手参考材料，不代表本人完成整章。
+
+本轮核心已可收尾，实际耗时未知。**先扣除今天已用时间；若已学满，今天只记录停点，下面留到下一次学习，不另加 120 分钟。** 新任务均为安排，未声明本人已运行或通过。
+
+## 一个目标：独立用正交坐标计算，并还原检查
+
+1. **数值代数（最多 60 分钟）：QR 求解。** 精读 [Trefethen 第 7 讲](https://github.com/JunFengXiang/my_python_study/blob/main/local_books/numerical-linear-algebra/textbook.md#lecture-7)的定理 7.2 与式 (7.13)：满列秩、R 正对角时约化 QR 唯一；Q 某列与 R 对应行同时变号不改变 QR。复用下述文件矩阵及本人已有 Q，计算 R=QᵀA、Qᵀb，自己写两步回代求解 Rx=Qᵀb，再检查 Ax−b。参考分配：读 10、手算/编码 35、验证 15 分钟。
+2. **数值分析（最多 60 分钟）：换基复核。** 在 [-1,1]、权重 1 上，对 f(x)=2−3x 和 q₀=1/√2、q₁=√(3/2)x，自行用积分内积求两个系数，再展开还原 f；不要抄上轮纠正后的答案。精读 [数值分析 §3.1.3 连续函数空间与范数](https://github.com/JunFengXiang/my_python_study/blob/main/local_books/numerical-analysis/verified/sections/3.1.md)，结合上轮笔记写清平方积分 J 与 L² 范数 √J 的区别。参考分配：读/回顾 10、独立手算 35、核验/记录 15 分钟。
+3. **验收与记录包含在上述时间内。** QR 保存真实 Qᵀb、R、解向量及 max(abs(Ax−b))，目标不超过 1e-12；函数展开的常数项与 x 系数须分别还原为 2、−3。各用一句话解释“QR 为什么允许同时变号”和“标准正交基系数如何检验”。附代码、真实输出或手算，以及两科各自耗时、卡点、是否依赖完整答案。没有运行就写待验证。
+
+## 输入与输出
+
+- 已入库输入：[daily/11_11/data/matrix.csv](https://github.com/JunFengXiang/my_python_study/blob/main/daily/11_11/data/matrix.csv)，无表头、两行两列，内容为 `1,3` / `1,1`，即 A=[[1,3],[1,1]]。来源为自拟确定性教学示例，不含随机过程。该文件在 main；本学习分支未复制学生材料，请从链接确认本机已有输入，不假设切换分支后自动存在。
+- 新右端项版本 qr-solve-v1：请首次手动保存下列内容到 `data/linear_algebra/qr-solve-v1/rhs.csv`，之后从文件读，跳过表头。单列 b、两行值；自拟教学向量，无 seed。**本次仅提供内容，CSV 尚未创建或提交；若本机已有同名文件，先核对，不覆盖。**
+
+```csv
+b
+5
+1
+```
+
+- 数值分析为明确给定的解析函数手算，无采样 CSV；参考由展开恒等式与解析积分核验，不虚构程序结果。
+- 拟新增自己的程序 `numerical/qr_solve.py`（若已有同名程序先复用），真实运行时才保存 `results/qr-solve-v1/<本次运行标识>/output.txt`。两科解释与耗时记在该结果目录的 `notes.md`；这些输出目前均未生成。保留原 `daily/11_11/qr.py` 和原输出。
+
+**唯一进阶：**核心提前通过，再将函数改为 1+2x，独立算新基坐标并展开核对，仍计入本科 60 分钟。
+**30 分钟保底：**代数 15 分钟只完成 Qᵀb 与回代手算；分析 15 分钟只复核 2−3x 的两个系数并展开。未做代码验证明确保留。卡住约 20 分钟先检查中间量，再请求分层提示。
+
+## 同步与历史
+
+本次只维护本任务文件，使用现有学习分支 `study/mac-data-analysis-batch02` / [草稿 PR #3](https://github.com/JunFengXiang/my_python_study/pull/3)。PR #1 已合并，不重开。写前核对 main 为 `efd0d51`、学习分支为 `a903225`；两者存在未合并差异，PR 报告冲突，不自动合并或改写学生答案。本次为纯文档，未重跑学生程序或全仓测试，无新增 CI 通过声明。
+真实经验已见 [main 学习日志](https://github.com/JunFengXiang/my_python_study/blob/main/docs/LEARNING_LOG.md)，本次不重复追加。
+
+以下内容原样保留作历史索引，其中“当前/今天/待完成”只表示当时状态，不覆盖上方安排。
+
+---
+
 # 当前任务入口｜2026-11-11
 今天执行[LA02投影与NA02函数逼近](tasks/LA02-NA02-projection-approximation.md)，数值代数与数值分析各约60分钟，总计120分钟。输入、阅读、验收、保底与进阶均在新卡。
 依据[main最新学习指南](https://github.com/JunFengXiang/my_python_study/blob/main/docs/LEARNING_GUIDE.md)的11月11日调整；本分支旧指南与旧逐日表只作历史，不能覆盖新安排。
