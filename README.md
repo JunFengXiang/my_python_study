@@ -37,8 +37,11 @@ Python/NumPy、绘图和数据整理按两科需要学习；独立的 pandas、P
 
 日常 Python 练习保存在 [grammar/](grammar/)。
 
+- [数值分析第3章作业](numerical/numerical_analysis/ch03_approximation/README.md)：原始安排、必做与选做解答、PDF和Python验算。
+
 在仓库根目录检查两本 Python 参考书的页码和本地链接：
 
 ```bash
 python3 local_books/tools/report.py
 ```
+
